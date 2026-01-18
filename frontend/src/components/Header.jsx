@@ -105,8 +105,9 @@ export default function Header() {
             <Navbar expand="lg" sticky="top" className="bg-white bg-opacity-95 shadow-sm py-3" style={{ backdropFilter: 'blur(10px)' }}>
                 <Container fluid className="px-5">
                     {/* BRAND LOGO */}
-                    <Navbar.Brand as={Link} to="/" className="fw-bolder fs-3 text-dark tracking-tight me-5">
-                        ShopGo.
+                    <Navbar.Brand as={Link} to="/" className="d-flex align-items-center fw-bolder fs-3 text-dark tracking-tight me-5">
+                        <img src="/ShopGo-logo.jpg" alt="ShopGo" height="40" className="me-2" />
+                        ShopGo
                     </Navbar.Brand>
 
                     <Navbar.Toggle aria-controls="navbarScroll" />
@@ -231,7 +232,7 @@ export default function Header() {
                                             {/* Wallet - Highlighted */}
                                             <Dropdown.Item as={Link} to="/wallet" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
                                                 <div className="d-flex align-items-center justify-content-center bg-white rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
-                                                    <FaWallet size={14} className="text-dark"/>
+                                                    <FaWallet size={14} className="text-dark" />
                                                 </div>
                                                 My Wallet
                                             </Dropdown.Item>
