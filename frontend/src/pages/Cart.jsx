@@ -1,15 +1,84 @@
-import { Container, Row, Col, Card, Button, Form, Image } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Form, Image, Modal, Badge } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
-import { useContext } from "react";
+import { useContext, useState, useEffect } from "react";
 import { useCart } from "../components/CartContext";
-import { FaTrash, FaArrowLeft, FaLock } from "react-icons/fa";
+import { AuthContext } from "../components/AuthProvider";
+import { FaTrash, FaArrowLeft, FaLock, FaTicketAlt } from "react-icons/fa";
+import VoucherCard from "../components/VoucherCard";
 
 export default function Cart() {
     const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
+    const { currentUser } = useContext(AuthContext);
     const navigate = useNavigate();
 
+    const [vouchers, setVouchers] = useState([]);
+    const [selectedVoucher, setSelectedVoucher] = useState(null);
+    const [showVoucherModal, setShowVoucherModal] = useState(false);
+
+    // Fetch Vouchers
+    useEffect(() => {
+        const fetchVouchers = async () => {
+            const uid = currentUser ? currentUser.uid : "";
+            try {
+                const res = await fetch(`http://127.0.0.1:5000/vouchers?firebase_uid=${uid}`);
+                if (res.ok) {
+                    setVouchers(await res.json());
+                }
+            } catch (err) {
+                console.error("Failed to load vouchers", err);
+            }
+        }
+        fetchVouchers();
+    }, [currentUser]);
+
+    const handleClaimVoucher = async (voucherId) => {
+        if (!currentUser) return navigate("/login");
+        try {
+            const res = await fetch(`http://127.0.0.1:5000/vouchers/claim`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firebase_uid: currentUser.uid, voucher_id: voucherId })
+            });
+            if (res.ok) {
+                // Refresh list to update 'is_claimed'
+                const res2 = await fetch(`http://127.0.0.1:5000/vouchers?firebase_uid=${currentUser.uid}`);
+                if (res2.ok) setVouchers(await res2.json());
+            } else {
+                alert("Could not claim voucher");
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    const calculateDiscount = () => {
+        if (!selectedVoucher) return 0;
+
+        let discount = 0;
+        const subtotal = getCartTotal();
+
+        if (subtotal < parseFloat(selectedVoucher.min_spend)) return 0; // Min spend check
+
+        if (selectedVoucher.discount_type === 'fixed') {
+            discount = parseFloat(selectedVoucher.discount_value);
+        } else {
+            discount = subtotal * (parseFloat(selectedVoucher.discount_value) / 100);
+            // Cap logic if needed, but schema didn't enforce capped amount explicitly yet other than maybe separate col? 
+            // We'll trust the value for now or assume unlimited cap for percentage unless descriptions says so.
+            // Wait, schema didn't have max_cap column. I'll assume standard % for now.
+        }
+        return Math.min(discount, subtotal); // Cannot exceed subtotal
+    };
+
+    const discountAmount = calculateDiscount();
     const shippingCost = 5;
-    const total = getCartTotal() + shippingCost;
+    const subtotal = getCartTotal();
+    const finalTotal = Math.max(0, subtotal + shippingCost - discountAmount);
+
+    const handleCheckout = () => {
+        // Pass selected voucher to checkout via state
+        navigate("/checkout", { state: { selectedVoucher, discountAmount } });
+    }
 
     if (cartItems.length === 0) {
         return (
@@ -106,25 +175,43 @@ export default function Cart() {
 
                             <div className="d-flex justify-content-between mb-2">
                                 <span className="text-muted">Subtotal ({cartItems.length} items)</span>
-                                <span className="fw-bold">RM{getCartTotal().toFixed(2)}</span>
+                                <span className="fw-bold">RM{subtotal.toFixed(2)}</span>
                             </div>
-                            <div className="d-flex justify-content-between mb-4">
+                            <div className="d-flex justify-content-between mb-2">
                                 <span className="text-muted">Shipping</span>
                                 <span className="fw-bold">{shippingCost === 0 ? "Free" : `RM${shippingCost.toFixed(2)}`}</span>
                             </div>
+
+                            {/* Vouchers Section */}
+                            <div className="d-flex justify-content-between align-items-center mb-3 p-2 bg-white rounded border">
+                                <div className="d-flex align-items-center text-warning">
+                                    <FaTicketAlt className="me-2" />
+                                    <span className="small fw-bold text-dark">{selectedVoucher ? selectedVoucher.code : "Platform Voucher"}</span>
+                                </div>
+                                <Button variant="link" size="sm" className="text-primary text-decoration-none fw-bold" onClick={() => setShowVoucherModal(true)}>
+                                    {selectedVoucher ? "Change" : "Select"}
+                                </Button>
+                            </div>
+
+                            {selectedVoucher && (
+                                <div className="d-flex justify-content-between mb-2 text-success">
+                                    <span>Voucher Discount</span>
+                                    <span>-RM{discountAmount.toFixed(2)}</span>
+                                </div>
+                            )}
 
                             <hr />
 
                             <div className="d-flex justify-content-between mb-4">
                                 <span className="fs-5 fw-bold">Total</span>
-                                <span className="fs-4 fw-bolder">RM{total.toFixed(2)}</span>
+                                <span className="fs-4 fw-bolder">RM{finalTotal.toFixed(2)}</span>
                             </div>
 
                             <Button
                                 variant="dark"
                                 size="lg"
                                 className="w-100 rounded-pill py-3 fw-bold mb-3 shadow-sm hover-scale"
-                                onClick={() => navigate("/checkout")}
+                                onClick={handleCheckout}
                             >
                                 Proceed to Checkout
                             </Button>
@@ -133,19 +220,34 @@ export default function Cart() {
                                 <FaLock size={12} className="me-2" /> Secure Checkout
                             </div>
 
-                            {/* Promo Code Input (Optional Visual) */}
-                            <div className="mt-4 pt-4 border-top">
-                                <p className="small fw-bold text-muted text-uppercase mb-2">Promo Code</p>
-                                <div className="d-flex gap-2">
-                                    <Form.Control type="text" placeholder="Enter code" className="rounded-pill bg-white border-0 shadow-sm" />
-                                    <Button variant="outline-dark" className="rounded-pill px-3 fw-bold">Apply</Button>
-                                </div>
-                            </div>
-
                         </Card.Body>
                     </Card>
                 </Col>
             </Row>
+
+            {/* Voucher Modal */}
+            <Modal show={showVoucherModal} onHide={() => setShowVoucherModal(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title className="fw-bold">Select Voucher</Modal.Title>
+                </Modal.Header>
+                <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto' }} className="bg-light">
+                    {vouchers.length === 0 ? (
+                        <p className="text-center text-muted py-3">No vouchers available at the moment.</p>
+                    ) : (
+                        vouchers.map(v => (
+                            <VoucherCard
+                                key={v.id}
+                                voucher={v}
+                                isClaimed={v.is_claimed}
+                                onClaim={v.is_claimed ? null : handleClaimVoucher}
+                                onSelect={(v) => { setSelectedVoucher(v); setShowVoucherModal(false); }}
+                                isSelected={selectedVoucher?.id === v.id}
+                                disabled={v.is_claimed && subtotal < parseFloat(v.min_spend)}
+                            />
+                        ))
+                    )}
+                </Modal.Body>
+            </Modal>
         </Container>
     );
 }

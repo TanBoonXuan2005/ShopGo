@@ -28,7 +28,7 @@ export default function Home() {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const API_URL = 'https://c4772cc6-1f1b-44f4-8b39-7a97086b8204-00-260uyq3aib74z.pike.replit.dev';
+                const API_URL = 'http://localhost:5000';
                 const response = await fetch(`${API_URL}/products`);
                 if (response.ok) {
                     const data = await response.json();
@@ -308,8 +308,21 @@ export default function Home() {
                             {error && <Alert variant="danger">{error}</Alert>}
                             {!loading && !error && filteredProducts.length === 0 && (
                                 <div className="text-center py-5">
-                                    <h4 className="text-muted">No products found matching your filters.</h4>
-                                    <Button variant="outline-dark" onClick={() => navigate("/")}>Clear All Filters</Button>
+                                    {(searchQuery || category || priceFilters.length > 0 || minRating > 0) ? (
+                                        <>
+                                            <h4 className="text-muted">No products found matching your filters.</h4>
+                                            <Button variant="outline-dark" onClick={() => {
+                                                navigate("/");
+                                                setPriceFilters([]);
+                                                setMinRating(0);
+                                            }}>Clear All Filters</Button>
+                                        </>
+                                    ) : (
+                                        <div className="d-flex flex-column align-items-center">
+                                            <h4 className="text-muted mb-3">No products available yet.</h4>
+                                            <p className="text-muted">Check back later for new arrivals!</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                             <Row xs={1} md={2} lg={4} xl={5} className="g-4">

@@ -8,6 +8,7 @@ export default function SellerRegistration() {
     const { currentUser, refreshUser } = useContext(AuthContext);
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [storeName, setStoreName] = useState("");
 
     // If already a seller, redirect
     useEffect(() => {
@@ -22,13 +23,18 @@ export default function SellerRegistration() {
             return;
         }
 
+        if (!storeName.trim()) {
+            alert("Please enter a store name.");
+            return;
+        }
+
         setLoading(true);
         try {
-            const API_URL = 'https://c4772cc6-1f1b-44f4-8b39-7a97086b8204-00-260uyq3aib74z.pike.replit.dev';
+            const API_URL = 'http://localhost:5000';
             const response = await fetch(`${API_URL}/users/${currentUser.uid}/role`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ role: 'seller' })
+                body: JSON.stringify({ role: 'seller', store_name: storeName })
             });
 
             if (response.ok) {
@@ -86,24 +92,40 @@ export default function SellerRegistration() {
                                 </Col>
                             </Row>
 
-                            <div className="d-grid gap-2 col-md-8 mx-auto">
-                                <Button
-                                    variant="dark"
-                                    size="lg"
-                                    className="py-3 fw-bold rounded-pill"
-                                    onClick={handleRegister}
-                                    disabled={loading}
-                                >
-                                    {loading ? <Spinner animation="border" size="sm" /> : "Register Now - It's Free"}
-                                </Button>
-                                <p className="text-center small text-muted mt-2">
-                                    By registering, you agree to our Seller Terms & Conditions.
-                                </p>
+
+
+                            <div className="col-md-8 mx-auto">
+                                <div className="mb-4 text-start">
+                                    <label className="form-label fw-bold">Store Name</label>
+                                    <input
+                                        type="text"
+                                        className="form-control form-control-lg"
+                                        placeholder="Enter your shop name (e.g. My Awesome Store)"
+                                        value={storeName}
+                                        onChange={(e) => setStoreName(e.target.value)}
+                                    />
+                                    <div className="form-text">This will be displayed to customers on your shop profile.</div>
+                                </div>
+
+                                <div className="d-grid gap-2">
+                                    <Button
+                                        variant="dark"
+                                        size="lg"
+                                        className="py-3 fw-bold rounded-pill"
+                                        onClick={handleRegister}
+                                        disabled={loading || !storeName.trim()}
+                                    >
+                                        {loading ? <Spinner animation="border" size="sm" /> : "Register Now - It's Free"}
+                                    </Button>
+                                    <p className="text-center small text-muted mt-2">
+                                        By registering, you agree to our Seller Terms & Conditions.
+                                    </p>
+                                </div>
                             </div>
                         </Card.Body>
                     </Card>
                 </Col>
             </Row>
-        </Container>
+        </Container >
     );
 }

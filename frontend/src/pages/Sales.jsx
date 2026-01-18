@@ -14,7 +14,7 @@ export default function Sales() {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const API_URL = 'https://c4772cc6-1f1b-44f4-8b39-7a97086b8204-00-260uyq3aib74z.pike.replit.dev';
+                const API_URL = 'http://localhost:5000';
                 const response = await fetch(`${API_URL}/products`);
                 if (response.ok) {
                     const data = await response.json();

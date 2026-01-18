@@ -66,7 +66,7 @@ export default function Chatbot() {
                 <Card className="shadow-lg border-0 mb-3" style={{ width: '350px', height: '500px', display: 'flex', flexDirection: 'column' }}>
                     <Card.Header className="bg-dark text-white d-flex justify-content-between align-items-center py-3">
                         <div className="d-flex align-items-center gap-2">
-                            <FaRobot /> <strong>ShopGo AI</strong>
+                            <FaRobot /> <strong>ShopGo Live Chat</strong>
                         </div>
                         <Button variant="link" className="text-white p-0" onClick={() => setIsOpen(false)}>
                             <FaTimes />

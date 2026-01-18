@@ -1,7 +1,7 @@
-import { Container, Navbar, Nav, Button, InputGroup, Form, Badge, Dropdown, Image } from "react-bootstrap";
-import { Link, useNavigate, Outlet } from "react-router-dom";
-import { FaShoppingCart, FaSearch, FaUser, FaClipboardList } from 'react-icons/fa';
-import { useContext, useState } from "react";
+import { Container, Navbar, Nav, Button, InputGroup, Form, Badge, Dropdown, Image, Modal } from "react-bootstrap";
+import { Link, useNavigate, Outlet, useLocation } from "react-router-dom";
+import { FaShoppingCart, FaSearch, FaUser, FaClipboardList, FaWallet, FaUserCog, FaStore, FaSignOutAlt, FaBoxOpen, FaBell } from 'react-icons/fa';
+import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "./AuthProvider";
 import { useCart } from "./CartContext"; // Use custom hook
 import { auth } from "../firebase";
@@ -10,7 +10,7 @@ import Footer from "./Footer";
 import Chatbot from "./Chatbot";
 
 export default function Header() {
-    const navigate = useNavigate();
+    const location = useLocation(); // Use location hook
     const { currentUser } = useContext(AuthContext);
     const { getCartCount } = useCart(); // Use custom hook
     const userProfileImage = currentUser?.photoURL;
@@ -22,18 +22,82 @@ export default function Header() {
 
     const handleSearch = (e) => {
         e.preventDefault();
-        // Navigate to Home with search query
-        navigate(`/?search=${encodeURIComponent(searchTerm)}`);
+
+        // If we are on a store page, search within that store
+        if (location.pathname.startsWith('/store/')) {
+            // Preserve the current path (store page) and append query param
+            // We can use navigate to refresh/update the query param on same page
+            navigate(`${location.pathname}?q=${encodeURIComponent(searchTerm)}`);
+        } else {
+            // Default global search
+            navigate(`/?search=${encodeURIComponent(searchTerm)}`);
+        }
     }
 
-    const handleLogout = async () => {
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+    const confirmLogout = async () => {
         try {
             await signOut(auth);
             navigate('/login');
+            setShowLogoutModal(false);
         } catch (err) {
             console.error("Error: ", err);
         }
     }
+
+    const handleLogoutClick = () => {
+        setShowLogoutModal(true);
+    };
+
+    // --- NOTIFICATIONS LOGIC ---
+    const [notifications, setNotifications] = useState([]);
+    const unreadCount = notifications.filter(n => !n.is_read).length;
+
+    useEffect(() => {
+        if (currentUser) {
+            fetchNotifications();
+            // Optional: Poll every 30s
+            const interval = setInterval(fetchNotifications, 30000);
+            return () => clearInterval(interval);
+        }
+    }, [currentUser]);
+
+    const fetchNotifications = async () => {
+        try {
+            const API_URL = 'http://localhost:5000';
+            const res = await fetch(`${API_URL}/notifications/${currentUser.uid}`);
+            if (res.ok) {
+                const data = await res.json();
+                setNotifications(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch notifications", err);
+        }
+    };
+
+    const markAsRead = async (id) => {
+        try {
+            const API_URL = 'http://localhost:5000';
+            await fetch(`${API_URL}/notifications/${id}/read`, { method: 'PUT' });
+            // Update local state
+            setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+        } catch (err) {
+            console.error("Failed to mark notification as read", err);
+        }
+    };
+
+    const markAllAsRead = async () => {
+        if (unreadCount === 0) return;
+        try {
+            const API_URL = 'http://localhost:5000';
+            await fetch(`${API_URL}/notifications/read-all/${currentUser.uid}`, { method: 'PUT' });
+            // Update local state immediately
+            setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+        } catch (err) {
+            console.error("Failed to mark all as read", err);
+        }
+    };
 
     return (
         <>
@@ -56,7 +120,7 @@ export default function Header() {
                                 </InputGroup.Text>
                                 <Form.Control
                                     type="search"
-                                    placeholder="Search for products..."
+                                    placeholder={location.pathname.startsWith('/store/') ? "Search in this shop..." : "Search for products..."}
                                     className="bg-light border-start-0 border-end-0 shadow-none"
                                     aria-label="Search"
                                     value={searchTerm}
@@ -81,6 +145,43 @@ export default function Header() {
                                         <FaClipboardList size={20} />
                                     </div>
                                 </Nav.Link>
+                            )}
+                            {/* NOTIFICATIONS ICON */}
+                            {currentUser && (
+                                <Dropdown align="end" onToggle={(isOpen) => { if (isOpen) markAllAsRead(); }}>
+                                    <Dropdown.Toggle as="div" className="position-relative text-dark d-flex align-items-center cursor-pointer after-none" id="dropdown-notifications">
+                                        <div className="p-2 rounded-circle bg-light hover-bg-gray transition-all">
+                                            <FaBell size={20} className={unreadCount > 0 ? "text-primary anim-swing" : ""} />
+                                        </div>
+                                        {unreadCount > 0 && (
+                                            <Badge bg="danger" pill className="position-absolute translate-middle border border-light" style={{ top: '10px', left: '80%', fontSize: '0.6rem' }}>
+                                                {unreadCount}
+                                            </Badge>
+                                        )}
+                                    </Dropdown.Toggle>
+                                    <Dropdown.Menu className="shadow-lg border-0 rounded-4 mt-3 p-0 overflow-hidden" style={{ width: '320px', maxHeight: '400px', overflowY: 'auto' }}>
+                                        <div className="px-3 py-3 bg-white border-bottom d-flex justify-content-between align-items-center sticky-top">
+                                            <span className="fw-bold text-dark">Notifications</span>
+                                            {unreadCount > 0 && <span className="badge bg-primary rounded-pill">{unreadCount} New</span>}
+                                        </div>
+                                        {notifications.length === 0 ? (
+                                            <div className="p-5 text-center text-muted">
+                                                <FaBell size={24} className="mb-2 opacity-50" />
+                                                <p className="small mb-0">No notifications yet</p>
+                                            </div>
+                                        ) : (
+                                            notifications.map(n => (
+                                                <Dropdown.Item key={n.id} className={`p-3 border-bottom text-wrap ${!n.is_read ? 'bg-indigo-light' : ''}`} onClick={() => markAsRead(n.id)} style={{ whiteSpace: 'normal', backgroundColor: !n.is_read ? '#f0f4ff' : 'white' }}>
+                                                    <div className="d-flex w-100 justify-content-between mb-1">
+                                                        <strong className="small text-dark">{n.title}</strong>
+                                                        <small className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(n.created_at).toLocaleDateString()}</small>
+                                                    </div>
+                                                    <p className="mb-0 small text-secondary lh-sm">{n.message}</p>
+                                                </Dropdown.Item>
+                                            ))
+                                        )}
+                                    </Dropdown.Menu>
+                                </Dropdown>
                             )}
 
                             {/* CART ICON */}
@@ -119,23 +220,64 @@ export default function Header() {
                                         )}
                                     </Dropdown.Toggle>
 
-                                    <Dropdown.Menu className="shadow-lg border-0 rounded-3 mt-2 p-2" style={{ minWidth: '200px' }}>
-                                        <div className="px-3 py-2 border-bottom mb-2">
-                                            <p className="mb-0 fw-bold text-truncate">{currentUser.displayName || "User"}</p>
+                                    <Dropdown.Menu className="shadow-lg border-0 rounded-4 mt-3 p-0 overflow-hidden animate-slide-in" style={{ minWidth: '260px' }}>
+                                        {/* User Header */}
+                                        <div className="px-4 py-3 bg-light border-bottom">
+                                            <p className="mb-0 fw-bold text-dark text-truncate" style={{ fontSize: '0.95rem' }}>{currentUser.displayName || "User"}</p>
                                             <p className="mb-0 small text-muted text-truncate">{currentUser.email}</p>
                                         </div>
-                                        {/* My Purchase removed from here */}
-                                        <Dropdown.Item as={Link} to="/profile" className="rounded-2 py-2">Profile & Settings</Dropdown.Item>
 
-                                        {/* Seller Logic */}
-                                        {currentUser.role === 'seller' ? (
-                                            <Dropdown.Item as={Link} to="/seller-centre" className="rounded-2 py-2 fw-bold text-success">Seller Centre</Dropdown.Item>
-                                        ) : (
-                                            <Dropdown.Item as={Link} to="/seller-register" className="rounded-2 py-2 fw-bold text-primary">Become a Seller</Dropdown.Item>
-                                        )}
+                                        <div className="p-2">
+                                            {/* Wallet - Highlighted */}
+                                            <Dropdown.Item as={Link} to="/wallet" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
+                                                <div className="d-flex align-items-center justify-content-center bg-white rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                    <FaWallet size={14} className="text-dark"/>
+                                                </div>
+                                                My Wallet
+                                            </Dropdown.Item>
 
-                                        <Dropdown.Divider />
-                                        <Dropdown.Item onClick={handleLogout} className="text-danger rounded-2 py-2 fw-bold">Logout</Dropdown.Item>
+                                            {/* My Purchase (Restored here for quick access) */}
+                                            <Dropdown.Item as={Link} to="/orders" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
+                                                <div className="d-flex align-items-center justify-content-center bg-light rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                    <FaBoxOpen size={14} className="text-dark" />
+                                                </div>
+                                                My Orders
+                                            </Dropdown.Item>
+
+                                            {/* Profile */}
+                                            <Dropdown.Item as={Link} to="/profile" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
+                                                <div className="d-flex align-items-center justify-content-center bg-light rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                    <FaUserCog size={14} className="text-dark" />
+                                                </div>
+                                                Profile & Settings
+                                            </Dropdown.Item>
+
+                                            {/* Seller Logic */}
+                                            {currentUser.role === 'seller' && currentUser.dbId ? (
+                                                <Dropdown.Item as={Link} to={`/store/${currentUser.dbId}`} className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
+                                                    <div className="d-flex align-items-center justify-content-center bg-light bg-opacity-25 rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                        <FaStore size={14} className="text-dark" />
+                                                    </div>
+                                                    Seller Centre
+                                                </Dropdown.Item>
+                                            ) : (
+                                                <Dropdown.Item as={Link} to="/seller-register" className="rounded-3 py-2 mb-1 d-flex align-items-center text-primary">
+                                                    <div className="d-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                        <FaStore size={14} />
+                                                    </div>
+                                                    Become a Seller
+                                                </Dropdown.Item>
+                                            )}
+
+                                            <Dropdown.Divider className="my-2 opacity-50" />
+
+                                            <Dropdown.Item onClick={handleLogoutClick} className="rounded-3 py-2 d-flex align-items-center text-danger fw-bold">
+                                                <div className="d-flex align-items-center justify-content-center bg-danger bg-opacity-10 rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                    <FaSignOutAlt size={14} />
+                                                </div>
+                                                Logout
+                                            </Dropdown.Item>
+                                        </div>
                                     </Dropdown.Menu>
                                 </Dropdown>
                             ) : (
@@ -162,6 +304,25 @@ export default function Header() {
             {/* Render Footer here to ensure it's on every page that uses Header as layout */}
             <Footer />
             <Chatbot />
+
+            {/* LOGOUT CONFIRMATION MODAL */}
+            <Modal show={showLogoutModal} onHide={() => setShowLogoutModal(false)} centered size="sm">
+                <Modal.Body className="text-center p-4">
+                    <div className="mb-3 text-danger">
+                        <FaSignOutAlt size={40} />
+                    </div>
+                    <h5 className="fw-bold mb-3">Sign Out?</h5>
+                    <p className="text-muted small mb-4">Are you sure you want to log out of your account?</p>
+                    <div className="d-flex gap-2 justify-content-center">
+                        <Button variant="light" onClick={() => setShowLogoutModal(false)} className="rounded-pill px-4">
+                            Cancel
+                        </Button>
+                        <Button variant="danger" onClick={confirmLogout} className="rounded-pill px-4">
+                            Log Out
+                        </Button>
+                    </div>
+                </Modal.Body>
+            </Modal>
         </>
     );
 }

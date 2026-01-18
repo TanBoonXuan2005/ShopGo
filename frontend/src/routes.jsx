@@ -1,7 +1,8 @@
 import { createBrowserRouter } from "react-router-dom";
 import Header from "./components/Header";
 import Home from "./pages/Home";
-import Profile from "./pages/Profile";
+import ProfilePage from "./pages/ProfilePage";
+import WalletPage from "./pages/WalletPage";
 import ErrorPage from "./pages/ErrorPage";
 import AuthPage from "./pages/AuthPage";
 import Cart from "./pages/Cart";
@@ -14,7 +15,8 @@ import Sales from "./pages/Sales";
 import SellerRegistration from "./pages/SellerRegistration";
 import Orders from "./pages/Orders";
 import Success from "./pages/Success";
-import SellerCentre from "./pages/SellerCentre";
+import StorePage from "./pages/StorePage";
+import PaymentCancel from "./pages/PaymentCancel";
 
 const router = createBrowserRouter([
     {
@@ -27,7 +29,11 @@ const router = createBrowserRouter([
             },
             {
                 path: '/profile',
-                element: <Profile />
+                element: <ProfilePage />
+            },
+            {
+                path: '/wallet',
+                element: <WalletPage />
             },
             {
                 path: "/cart",
@@ -48,6 +54,10 @@ const router = createBrowserRouter([
             {
                 path: "/products/:id",
                 element: <ProductDetails />
+            },
+            {
+                path: "/store/:sellerId",
+                element: <StorePage />
             },
             {
                 path: "/checkout",
@@ -86,9 +96,9 @@ const router = createBrowserRouter([
                 element: <Success />
             },
             {
-                path: "/seller-centre",
-                element: <SellerCentre />
-            }
+                path: "/payment-cancel",
+                element: <PaymentCancel />
+            },
         ],
     },
     {
@@ -96,8 +106,12 @@ const router = createBrowserRouter([
         element: <AuthPage />
     },
     {
-        path: "/add",
-        element: <AddProduct />
+        path: "/add-product",
+        element: <AddProduct />,
+    },
+    {
+        path: "/edit-product/:id",
+        element: <AddProduct />,
     },
     {
         path: "/seller-register",

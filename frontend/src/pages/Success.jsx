@@ -32,7 +32,14 @@ export default function Success() {
 
                 if (response.ok) {
                     setStatus("success");
-                    clearCart();
+                    if (orderId) {
+                        // Clear pending order storage on success
+                        sessionStorage.removeItem('pending_order_id');
+                        sessionStorage.removeItem('pending_order_total');
+                        clearCart();
+                    }
+                } else if (response.status === 404) {
+                    setStatus("not_found");
                 } else {
                     console.error("Failed to update order status");
                     setStatus("error");
@@ -70,6 +77,22 @@ export default function Success() {
                             </Button>
                             <Button variant="outline-secondary" onClick={() => navigate("/")}>
                                 Continue Shopping
+                            </Button>
+                        </div>
+                    </>
+                ) : status === "not_found" ? (
+                    <>
+                        <div className="mb-4 text-danger">
+                            <FaExclamationCircle size={80} />
+                        </div>
+                        <h2 className="fw-bold mb-3">Order Not Found</h2>
+                        <p className="text-muted mb-4">
+                            We received your payment, but the order record seems to be missing from our database.
+                            Please contact support with Order ID: <strong>{orderId}</strong>.
+                        </p>
+                        <div className="d-grid gap-2">
+                            <Button variant="dark" onClick={() => navigate("/")}>
+                                Return Home
                             </Button>
                         </div>
                     </>

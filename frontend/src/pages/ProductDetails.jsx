@@ -1,7 +1,7 @@
 import { Container, Row, Col, Card, Button, Spinner, Alert, Badge, Toast, ToastContainer } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useContext } from "react";
-import { FaShoppingCart, FaStar, FaShieldAlt, FaShippingFast } from "react-icons/fa";
+import { FaShoppingCart, FaStar, FaShieldAlt, FaShippingFast, FaStore } from "react-icons/fa";
 import { useCart } from "../components/CartContext";
 import { AuthContext } from "../components/AuthProvider";
 import { Form } from "react-bootstrap";
@@ -55,9 +55,19 @@ export default function ProductDetails() {
                     const allRes = await fetch(`${API_URL}/products`);
                     if (allRes.ok) {
                         const allData = await allRes.json();
-                        // Filter out current product
-                        const other = allData.filter(p => p.id !== parseInt(id) && p.id !== data.id).slice(0, 4);
-                        setRelatedProducts(other);
+                        // Filter by category and exclude current product
+                        const other = allData
+                            .filter(p => p.id !== parseInt(id) && p.id !== data.id && p.category === data.category)
+                            .sort(() => 0.5 - Math.random()) // Randomize
+                            .slice(0, 4);
+
+                        // Fallback if no related products found
+                        if (other.length === 0) {
+                            const random = allData.filter(p => p.id !== parseInt(id) && p.id !== data.id).sort(() => 0.5 - Math.random()).slice(0, 4);
+                            setRelatedProducts(random);
+                        } else {
+                            setRelatedProducts(other);
+                        }
                     }
 
                 } else {
@@ -166,7 +176,9 @@ export default function ProductDetails() {
                         <h1 className="fw-bolder mb-2 display-5">{product.name}</h1>
 
 
-                        <h2 className="display-6 fw-bold text-dark mb-4">RM{product.price}</h2>
+
+
+                        <h2 className="display-6 fw-bold text-danger mb-4">RM{product.price}</h2>
                         <p className="lead text-muted mb-4" style={{ fontSize: "1.1rem", lineHeight: "1.8" }}>
                             {product.description || "No description available for this product. However, it is one of our best sellers."}
                         </p>
@@ -192,9 +204,15 @@ export default function ProductDetails() {
                         </div>
 
                         <div className="d-grid gap-2 mb-4">
-                            <Button variant="dark" size="lg" className="rounded-pill py-3 fw-bold" onClick={handleAddToCart}>
-                                <FaShoppingCart className="me-2" /> Add to Shopping Bag
-                            </Button>
+                            {currentUser && product.seller_id && Number(currentUser.dbId) === Number(product.seller_id) ? (
+                                <Button variant="secondary" size="lg" className="rounded-pill py-3 fw-bold" disabled>
+                                    <FaStore className="me-2" /> You own this product
+                                </Button>
+                            ) : (
+                                <Button variant="dark" size="lg" className="rounded-pill py-3 fw-bold" onClick={handleAddToCart}>
+                                    <FaShoppingCart className="me-2" /> Add to Cart
+                                </Button>
+                            )}
                         </div>
 
                         {/* Features */}
@@ -215,6 +233,51 @@ export default function ProductDetails() {
                     </div>
                 </Col>
             </Row>
+
+
+
+            {/* SELLER SECTION */}
+            {
+                product.seller_email && (
+                    <div className="mb-5 border-top pt-5">
+                        <Card className="border-0 shadow-sm bg-light">
+                            <Card.Body className="p-4 d-flex align-items-center justify-content-between flex-wrap gap-4">
+                                <div className="d-flex align-items-center">
+                                    <div className="bg-white rounded-circle shadow-sm d-flex align-items-center justify-content-center me-4 overflow-hidden" style={{ width: '80px', height: '80px' }}>
+                                        {product.store_image_url ? (
+                                            <img src={product.store_image_url} alt="Store" className="w-100 h-100 object-fit-cover" />
+                                        ) : (
+                                            <FaStore className="text-warning" size={32} />
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h5 className="fw-bold mb-1">{product.store_name || product.seller_email}</h5>
+                                        <div className="text-muted small mb-2">Verified Seller • Active 5 minutes ago</div>
+                                        <div className="d-flex gap-2">
+                                            <Button variant="outline-dark" size="sm" onClick={() => navigate(`/store/${product.seller_id}`)}>
+                                                <FaStore className="me-2" /> View Shop
+                                            </Button>
+                                            <Button variant="dark" size="sm" onClick={() => alert("Chat feature coming soon!")}>
+                                                Chat Now
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="d-flex gap-4 text-center border-start ps-4 d-none d-md-flex">
+                                    <div>
+                                        <h5 className="fw-bold mb-0">{product.seller_rating ? parseFloat(product.seller_rating).toFixed(1) : "0.0"}</h5>
+                                        <small className="text-muted">Rating</small>
+                                    </div>
+                                    <div>
+                                        <h5 className="fw-bold mb-0">98%</h5>
+                                        <small className="text-muted">Response</small>
+                                    </div>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </div>
+                )
+            }
 
             {/* REVIEWS SECTION */}
             <div className="mb-5 border-top pt-5">
@@ -294,36 +357,38 @@ export default function ProductDetails() {
             </div>
 
             {/* RELATED PRODUCTS */}
-            {relatedProducts.length > 0 && (
-                <div className="mt-5 pt-5 border-top">
-                    <h3 className="fw-bold mb-4">You May Also Like</h3>
-                    <Row xs={1} md={2} lg={4} className="g-4">
-                        {relatedProducts.map(rel => (
-                            <Col key={rel.id}>
-                                <Card className="h-100 border-0 shadow-sm product-card" onClick={() => {
-                                    window.scrollTo(0, 0);
-                                    navigate(`/products/${rel.id}`);
-                                }}>
-                                    <div className="position-relative overflow-hidden">
-                                        <Card.Img
-                                            variant="top"
-                                            src={rel.image_url}
-                                            style={{ height: '250px', objectFit: 'cover' }}
-                                            className="product-img-zoom"
-                                        />
-                                    </div>
-                                    <Card.Body>
-                                        <Card.Title className="fw-bold text-truncate h6">{rel.name}</Card.Title>
-                                        <h6 className="fw-bold text-success">RM{rel.price}</h6>
-                                        <Button variant="outline-dark" size="sm" className="w-100 mt-2 rounded-pill">View Details</Button>
-                                    </Card.Body>
-                                </Card>
-                            </Col>
-                        ))}
-                    </Row>
-                </div>
-            )}
-        </Container>
+            {
+                relatedProducts.length > 0 && (
+                    <div className="mt-5 pt-5 border-top">
+                        <h3 className="fw-bold mb-4">You May Also Like</h3>
+                        <Row xs={1} md={2} lg={4} className="g-4">
+                            {relatedProducts.map(rel => (
+                                <Col key={rel.id}>
+                                    <Card className="h-100 border-0 shadow-sm product-card" onClick={() => {
+                                        window.scrollTo(0, 0);
+                                        navigate(`/products/${rel.id}`);
+                                    }}>
+                                        <div className="position-relative overflow-hidden">
+                                            <Card.Img
+                                                variant="top"
+                                                src={rel.image_url}
+                                                style={{ height: '250px', objectFit: 'cover' }}
+                                                className="product-img-zoom"
+                                            />
+                                        </div>
+                                        <Card.Body>
+                                            <Card.Title className="fw-bold text-truncate h6">{rel.name}</Card.Title>
+                                            <h6 className="fw-bold text-success">RM{rel.price}</h6>
+                                            <Button variant="outline-dark" size="sm" className="w-100 mt-2 rounded-pill">View Details</Button>
+                                        </Card.Body>
+                                    </Card>
+                                </Col>
+                            ))}
+                        </Row>
+                    </div>
+                )
+            }
+        </Container >
     )
 
 }

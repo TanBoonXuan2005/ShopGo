@@ -1,12 +1,14 @@
 import { Container, Card, Button, Spinner, Nav, Badge, Image, Alert, Modal, Row, Col, Form } from "react-bootstrap";
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../components/AuthProvider";
+import { useCart } from "../components/CartContext";
 import { useNavigate } from "react-router-dom";
 import { FaBoxOpen, FaShippingFast, FaCheckCircle, FaStar, FaEye, FaMapMarkerAlt, FaFileInvoiceDollar } from 'react-icons/fa';
 
 export default function Orders() {
     const { currentUser } = useContext(AuthContext);
     const navigate = useNavigate();
+    const { addToCart, clearCart } = useCart();
 
     const [orders, setOrders] = useState([]);
     const [loadingOrders, setLoadingOrders] = useState(false);
@@ -86,16 +88,47 @@ export default function Orders() {
         setShowModal(true);
     };
 
-    // Review Modal State
-    const [showReviewModal, setShowReviewModal] = useState(false);
-    const [itemsToReview, setItemsToReview] = useState([]);
-    const [reviewData, setReviewData] = useState({}); // { itemId: { rating: 5, comment: "" } }
-    const [loadingReviews, setLoadingReviews] = useState({}); // { itemId: true/false }
+    // Cancel Modal State
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [orderToCancel, setOrderToCancel] = useState(null);
+
+    const openCancelModal = (orderId) => {
+        setOrderToCancel(orderId);
+        setShowCancelModal(true);
+    };
+
+    const confirmCancelOrder = async () => {
+        if (!orderToCancel) return;
+        try {
+            const API_URL = 'http://localhost:5000';
+            const res = await fetch(`${API_URL}/orders/${orderToCancel}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                // customized toast or just refresh for now
+                fetchOrders();
+                setShowCancelModal(false);
+                setOrderToCancel(null);
+            } else {
+                const data = await res.json();
+                console.error(data.error || "Failed to cancel order");
+                alert(data.error || "Failed to cancel order"); // Fallback or use a toast if available
+            }
+        } catch (err) {
+            console.error("Error cancelling order:", err);
+        }
+    };
 
     const openReviewModal = (order) => {
         setItemsToReview(order.items || []);
         setShowReviewModal(true);
     };
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [itemsToReview, setItemsToReview] = useState([]);
+    const [reviewData, setReviewData] = useState({}); // { itemId: { rating: 5, comment: "" } }
+    const [loadingReviews, setLoadingReviews] = useState({}); // { itemId: true/false }
+
+
 
     const handleSubmitItemReview = async (productId) => {
         const data = reviewData[productId];
@@ -136,14 +169,25 @@ export default function Orders() {
             case 'to_pay': return orders.filter(o => o.status === 'pending');
             case 'to_ship': return orders.filter(o => o.status === 'paid');
             case 'to_receive': return orders.filter(o => o.status === 'shipped');
-            case 'to_rate': return orders.filter(o => o.status === 'received');
-            case 'completed': return orders.filter(o => o.status === 'completed');
+            case 'completed': return orders.filter(o => o.status === 'completed' || o.status === 'received');
             default: return orders;
         }
     };
 
-    if (!currentUser) return null;
+    // --- PAYMENT LOGIC ---
+    const handlePayment = (order) => {
+        if (!order || !order.items) return;
 
+        // 1. Clear current cart to avoid conflict
+        clearCart();
+
+        // 2. Navigate to Checkout with ID to resume order
+        // Note: We do NOT re-add items to cart. We rely on Checkout.jsx fetching
+        // the existing order details from the backend to preserve the correct Total Amount (including discounts).
+        navigate(`/checkout?existing_order_id=${order.id}`);
+    };
+
+    if (!currentUser) return null;
     return (
         <Container className="py-5" style={{ minHeight: '80vh' }}>
             <h2 className="fw-bold mb-4">My Purchases</h2>
@@ -159,9 +203,6 @@ export default function Orders() {
                         </Nav.Item>
                         <Nav.Item>
                             <Nav.Link eventKey="to_receive" className="text-dark">To Receive</Nav.Link>
-                        </Nav.Item>
-                        <Nav.Item>
-                            <Nav.Link eventKey="to_rate" className="text-dark">To Rate</Nav.Link>
                         </Nav.Item>
                         <Nav.Item>
                             <Nav.Link eventKey="completed" className="text-dark">Completed</Nav.Link>
@@ -190,9 +231,14 @@ export default function Orders() {
                                             order.status === 'pending' ? 'warning' :
                                                 order.status === 'paid' ? 'success' :
                                                     order.status === 'shipped' ? 'info' :
-                                                        order.status === 'received' ? 'secondary' : 'warning'
-                                        } text="dark" className="px-3 py-2">
-                                            {order.status.toUpperCase().replace('_', ' ')}
+                                                        order.status === 'received' ? 'success' : 'warning'
+                                        } text="white" className="px-3 py-2">
+                                            {
+                                                order.status === 'shipped' ? 'SHIPPING' :
+                                                    order.status === 'received' ? 'ARRIVED' :
+                                                        order.status === 'completed' ? 'COMPLETED' :
+                                                            order.status.toUpperCase().replace('_', ' ')
+                                            }
                                         </Badge>
                                     </Card.Header>
                                     <Card.Body>
@@ -228,9 +274,14 @@ export default function Orders() {
                                                     </Button>
 
                                                     {order.status === 'pending' && (
-                                                        <Button variant="dark" size="sm" onClick={() => handlePayment(order)}>
-                                                            <FaFileInvoiceDollar className="me-2" /> Pay Now
-                                                        </Button>
+                                                        <>
+                                                            <Button variant="outline-danger" size="sm" onClick={() => openCancelModal(order.id)}>
+                                                                Cancel
+                                                            </Button>
+                                                            <Button variant="dark" size="sm" onClick={() => handlePayment(order)}>
+                                                                <FaFileInvoiceDollar className="me-2" /> Pay Now
+                                                            </Button>
+                                                        </>
                                                     )}
 
                                                     {order.status === 'paid' && (
@@ -238,14 +289,14 @@ export default function Orders() {
                                                             <FaShippingFast className="me-2" /> Simulate Ship
                                                         </Button>
                                                     )}
-                                                    {order.status === 'shipped' && (
-                                                        <Button variant="success" size="sm" onClick={() => updateOrderStatus(order.id, 'received')}>
-                                                            <FaCheckCircle className="me-2" /> Order Received
+                                                    {order.status === 'received' && (
+                                                        <Button variant="warning" size="sm" className="text-white" onClick={() => { setShowModal(false); openReviewModal(order); }}>
+                                                            <FaStar className="me-2 text-white" /> Rate Product
                                                         </Button>
                                                     )}
-                                                    {order.status === 'received' && (
-                                                        <Button variant="warning" size="sm" onClick={() => { setShowModal(false); openReviewModal(order); }}>
-                                                            <FaStar className="me-2" /> Rate Product
+                                                    {order.status === 'shipped' && (
+                                                        <Button variant="success" size="sm" onClick={() => updateOrderStatus(order.id, 'received')}>
+                                                            <FaCheckCircle className="me-2 text-white" /> Order Received
                                                         </Button>
                                                     )}
                                                 </div>
@@ -411,36 +462,24 @@ export default function Orders() {
                     ))}
                 </Modal.Body>
             </Modal>
+            {/* CANCEL CONFIRMATION MODAL */}
+            <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)} centered size="sm">
+                <Modal.Body className="text-center py-4">
+                    <div className="bg-danger bg-opacity-10 text-danger rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style={{ width: '60px', height: '60px' }}>
+                        <FaCheckCircle size={30} className="text-danger" style={{ transform: 'rotate(45deg)' }} />
+                        {/* Reusing check circle but rotated to look like X or just use simpler icon logic if available, keeping dependencies simple */}
+                    </div>
+                    <h5 className="fw-bold mb-2">Cancel Order?</h5>
+                    <p className="text-muted small mb-4">Are you sure you want to cancel this order? This action cannot be undone.</p>
+                    <div className="d-flex gap-2 justify-content-center">
+                        <Button variant="light" onClick={() => setShowCancelModal(false)} className="px-4">No, Keep It</Button>
+                        <Button variant="danger" onClick={confirmCancelOrder} className="px-4 fw-bold">Yes, Cancel</Button>
+                    </div>
+                </Modal.Body>
+            </Modal>
         </Container>
     );
 
-    // --- PAYMENT LOGIC ---
-    async function handlePayment(order) {
-        try {
-            const API_URL = 'http://localhost:5000';
-            const res = await fetch(`${API_URL}/create-checkout-session`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    items: order.items.map(item => ({
-                        name: item.name,
-                        image_url: item.image_url,
-                        price: item.price_at_purchase, // Use stored price
-                        quantity: item.quantity
-                    })),
-                    orderId: order.id
-                }),
-            });
-            const data = await res.json();
-            if (data.url) {
-                window.location.href = data.url;
-            } else {
-                alert("Payment initiation failed.");
-            }
-        } catch (err) {
-            console.error("Payment Error:", err);
-            alert("Error initiating payment.");
-        }
-    }
-}
+
+
 }
