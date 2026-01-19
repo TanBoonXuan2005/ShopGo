@@ -31,7 +31,7 @@ export default function ProductDetails() {
         const fetchProduct = async () => {
             setLoading(true);
             try {
-                const API_URL = 'http://localhost:5000';
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
                 const response = await fetch(`${API_URL}/products/${id}`);
 
@@ -99,7 +99,7 @@ export default function ProductDetails() {
 
         setSubmittingReview(true);
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const response = await fetch(`${API_URL}/reviews`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -132,7 +132,7 @@ export default function ProductDetails() {
     if (!product) return <Container className="py-5" style={{ minHeight: "80vh" }}><Alert variant="warning">Product not found.</Alert></Container>;
 
     return (
-        <Container className="py-5 position-relative" style={{ minHeight: "80vh" }}>
+        <Container className="py-3 py-md-5 position-relative product-details-container" style={{ minHeight: "80vh" }}>
             {/* SUCCESS TOAST */}
             <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1050 }}>
                 <Toast onClose={() => setShowToast(false)} show={showToast} delay={3000} autohide bg="success">
@@ -154,8 +154,7 @@ export default function ProductDetails() {
                         <Card.Img
                             variant="top"
                             src={product.image_url}
-                            style={{ height: "450px", objectFit: "cover" }}
-                            className="bg-light"
+                            className="bg-light product-detail-image w-100"
                         />
                     </Card>
                 </Col>
@@ -175,44 +174,83 @@ export default function ProductDetails() {
 
                         <h1 className="fw-bolder mb-2 display-5">{product.name}</h1>
 
-
-
-
-                        <h2 className="display-6 fw-bold text-danger mb-4">RM{product.price}</h2>
+                        <div className="mb-4">
+                            {product.discount_percentage > 0 ? (
+                                <div>
+                                    <div className="d-flex align-items-center mb-1">
+                                        <h2 className="display-6 fw-bold text-danger mb-0 me-3">
+                                            RM{(parseFloat(product.price) * (1 - product.discount_percentage / 100)).toFixed(2)}
+                                        </h2>
+                                        <Badge bg="danger" className="fs-5 px-3 py-2">-{product.discount_percentage}% OFF</Badge>
+                                    </div>
+                                    <h4 className="text-muted text-decoration-line-through fw-normal">
+                                        RM{parseFloat(product.price).toFixed(2)}
+                                    </h4>
+                                </div>
+                            ) : (
+                                <h2 className="display-6 fw-bold text-danger mb-4">RM{product.price}</h2>
+                            )}
+                        </div>
                         <p className="lead text-muted mb-4" style={{ fontSize: "1.1rem", lineHeight: "1.8" }}>
                             {product.description || "No description available for this product. However, it is one of our best sellers."}
                         </p>
 
-                        <div className="d-flex align-items-center gap-2 mb-4">
-                            <Button
-                                variant="outline-dark"
-                                className="rounded-circle p-0 d-flex align-items-center justify-content-center"
-                                style={{ width: '40px', height: '40px' }}
-                                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                            >
-                                -
-                            </Button>
-                            <span className="fs-5 fw-bold px-3 text-center" style={{ minWidth: '60px' }}>{quantity}</span>
-                            <Button
-                                variant="outline-dark"
-                                className="rounded-circle p-0 d-flex align-items-center justify-content-center"
-                                style={{ width: '40px', height: '40px' }}
-                                onClick={() => setQuantity(quantity + 1)}
-                            >
-                                +
-                            </Button>
+                        {/* DESKTOP CONTROLS (Hidden on Mobile) */}
+                        <div className="d-none d-md-block">
+                            <div className="d-flex align-items-center gap-2 mb-4">
+                                <Button
+                                    variant="outline-dark"
+                                    className="rounded-circle p-0 d-flex align-items-center justify-content-center"
+                                    style={{ width: '40px', height: '40px' }}
+                                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                >
+                                    -
+                                </Button>
+                                <span className="fs-5 fw-bold px-3 text-center" style={{ minWidth: '60px' }}>{quantity}</span>
+                                <Button
+                                    variant="outline-dark"
+                                    className="rounded-circle p-0 d-flex align-items-center justify-content-center"
+                                    style={{ width: '40px', height: '40px' }}
+                                    onClick={() => setQuantity(quantity + 1)}
+                                >
+                                    +
+                                </Button>
+                            </div>
+
+                            <div className="d-grid gap-2 mb-4">
+                                {currentUser && product.seller_id && Number(currentUser.dbId) === Number(product.seller_id) ? (
+                                    <Button variant="secondary" size="lg" className="rounded-pill py-3 fw-bold" disabled>
+                                        <FaStore className="me-2" /> You own this product
+                                    </Button>
+                                ) : (
+                                    <Button variant="dark" size="lg" className="rounded-pill py-3 fw-bold" onClick={handleAddToCart}>
+                                        <FaShoppingCart className="me-2" /> Add to Cart
+                                    </Button>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="d-grid gap-2 mb-4">
-                            {currentUser && product.seller_id && Number(currentUser.dbId) === Number(product.seller_id) ? (
-                                <Button variant="secondary" size="lg" className="rounded-pill py-3 fw-bold" disabled>
-                                    <FaStore className="me-2" /> You own this product
-                                </Button>
-                            ) : (
-                                <Button variant="dark" size="lg" className="rounded-pill py-3 fw-bold" onClick={handleAddToCart}>
-                                    <FaShoppingCart className="me-2" /> Add to Cart
-                                </Button>
-                            )}
+                        {/* MOBILE STICKY BOTTOM BAR */}
+                        <div className="sticky-bottom-bar d-md-none border-top">
+                            <div className="d-flex gap-3 align-items-center">
+                                <Form.Select
+                                    value={quantity}
+                                    onChange={(e) => setQuantity(parseInt(e.target.value))}
+                                    style={{ width: '80px' }}
+                                >
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n}</option>)}
+                                </Form.Select>
+
+                                {currentUser && product.seller_id && Number(currentUser.dbId) === Number(product.seller_id) ? (
+                                    <Button variant="secondary" className="w-100 rounded-pill fw-bold" disabled>
+                                        Your Product
+                                    </Button>
+                                ) : (
+                                    <Button variant="dark" className="w-100 rounded-pill fw-bold" onClick={handleAddToCart}>
+                                        Add to Cart - RM{((parseFloat(product.price) * (1 - (product.discount_percentage || 0) / 100)) * quantity).toFixed(2)}
+                                    </Button>
+                                )}
+                            </div>
                         </div>
 
                         {/* Features */}

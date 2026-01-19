@@ -60,7 +60,7 @@ export default function AuthPage() {
                 await sendEmailVerification(user);
                 console.log('Firebase Account Created:', user.email);
 
-                const API_URL = 'http://localhost:5000';
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
                 const response = await fetch(`${API_URL}/users`, {
                     method: 'POST',
                     headers: {
@@ -103,7 +103,7 @@ export default function AuthPage() {
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
 
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             await fetch(`${API_URL}/users`, {
                 method: 'POST',
                 headers: {

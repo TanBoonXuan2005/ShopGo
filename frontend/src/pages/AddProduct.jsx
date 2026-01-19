@@ -42,7 +42,7 @@ export default function AddProduct() {
         if (isEditMode) {
             const fetchProduct = async () => {
                 try {
-                    const API_URL = 'http://localhost:5000';
+                    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
                     const res = await fetch(`${API_URL}/products/${id}`);
                     if (res.ok) {
                         const data = await res.json();
@@ -108,7 +108,7 @@ export default function AddProduct() {
             }
 
             // 2. Send Data to Backend
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             let response;
 
             const payload = {

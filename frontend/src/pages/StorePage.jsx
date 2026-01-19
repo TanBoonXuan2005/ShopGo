@@ -4,6 +4,7 @@ import { useContext, useState, useEffect } from "react";
 import { FaStore, FaStar, FaSearch, FaCamera } from "react-icons/fa";
 import { AuthContext } from "../components/AuthProvider";
 import Sidebar from "../components/Sidebar";
+import ProductCard from "../components/ProductCard";
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Line } from "react-chartjs-2";
@@ -117,7 +118,7 @@ export default function StorePage() {
         if (!productToDelete) return;
 
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const response = await fetch(`${API_URL}/products/${productToDelete}`, {
                 method: 'DELETE',
             });
@@ -166,7 +167,7 @@ export default function StorePage() {
         if (isOwner && currentUser?.uid && activeTab === 'dashboard') {
             const fetchAnalytics = async () => {
                 try {
-                    const API_URL = 'http://localhost:5000';
+                    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
                     const res = await fetch(`${API_URL}/seller/analytics/${currentUser.uid}?period=${timeRange}`);
                     if (res.ok) {
                         const data = await res.json();
@@ -191,7 +192,7 @@ export default function StorePage() {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const API_URL = 'http://localhost:5000';
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
                 // Fetch Seller Profile
                 const sellerRes = await fetch(`${API_URL}/sellers/${sellerId}`);
@@ -298,7 +299,7 @@ export default function StorePage() {
             }
 
             // 4. Update Backend
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const res = await fetch(`${API_URL}/users/${sellerId}/profile`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -882,48 +883,4 @@ export default function StorePage() {
     );
 }
 
-// Reusable Product Card Component
-function ProductCard({ product, navigate, isOwner, onDelete, onEdit }) {
-    return (
-        <Card className="h-100 border-0 shadow-sm product-card position-relative">
-            <div className="position-relative overflow-hidden" onClick={() => navigate(`/products/${product.id}`)} style={{ cursor: 'pointer' }}>
-                <Card.Img
-                    variant="top"
-                    src={product.image_url}
-                    style={{ height: '200px', objectFit: 'cover' }}
-                    className="product-img-zoom"
-                />
-                {product.average_rating > 4.5 && (
-                    <Badge bg="warning" text="dark" className="position-absolute top-0 end-0 m-2 shadow-sm">
-                        Top Rated
-                    </Badge>
-                )}
-            </div>
 
-            <Card.Body className="p-2 d-flex flex-column justify-content-between">
-                <div>
-                    <Card.Title className="fw-bold text-truncate small mb-1" onClick={() => navigate(`/products/${product.id}`)} style={{ cursor: 'pointer' }}>{product.name}</Card.Title>
-                    <div className="text-danger fw-bold">RM{product.price}</div>
-                </div>
-
-                <div className="d-flex align-items-center justify-content-between mt-2">
-                    <div className="d-flex align-items-center small text-muted">
-                        <FaStar className="text-warning me-1" size={12} />
-                        {product.average_rating > 0 ? parseFloat(product.average_rating).toFixed(1) : "0"}
-                        <span className="ms-1">({product.review_count || 0})</span>
-                    </div>
-                    {isOwner && (
-                        <div className="d-flex gap-1">
-                            <Button variant="outline-dark" size="sm" className="p-1 px-2" onClick={(e) => { e.stopPropagation(); onEdit(product); }}>
-                                <i className="bi bi-pencil"></i>
-                            </Button>
-                            <Button variant="outline-danger" size="sm" className="p-1 px-2" onClick={(e) => { e.stopPropagation(); onDelete(product.id); }}>
-                                <i className="bi bi-trash"></i>
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            </Card.Body>
-        </Card>
-    );
-}

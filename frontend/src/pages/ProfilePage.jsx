@@ -68,7 +68,7 @@ export default function ProfilePage() {
             // 2. Update Backend (SQL)
             // Note: Ensure your backend has a PUT route for /users/:id/profile
             // If not, you might only need to update Firebase profile here
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
             // Optional: Send to backend if you are storing username/photo there
             // await fetch(`${API_URL}/users/${currentUser.uid}`, { ... }) 

@@ -2,6 +2,7 @@ import { Container, Row, Col, Card, Button, Spinner, Alert, Carousel, Offcanvas,
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams, useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import ProductCard from "../components/ProductCard";
 import { FaStar, FaShoppingCart } from "react-icons/fa";
 import { useCart } from "../components/CartContext";
 
@@ -28,7 +29,7 @@ export default function Home() {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const API_URL = 'http://localhost:5000';
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
                 const response = await fetch(`${API_URL}/products`);
                 if (response.ok) {
                     const data = await response.json();
@@ -87,16 +88,18 @@ export default function Home() {
             if (!matchesSearch) return false;
         }
 
-        // 1.5 Category Filter (Simulated)
+        // 1.5 Category Filter
         if (category) {
             const catLower = category.toLowerCase();
-            const textToCheck = (product.name + " " + product.description).toLowerCase();
+            const prodCat = (product.category || "").toLowerCase();
 
-            // Simple keyword matching since we don't have real category data
-            if (!textToCheck.includes(catLower)) {
-                // Fallback keywords
-                if (catLower === 'electronics' && !textToCheck.includes('camera') && !textToCheck.includes('tech') && !textToCheck.includes('phone')) return false;
-                if (catLower === 'fashion' && !textToCheck.includes('shirt') && !textToCheck.includes('dress') && !textToCheck.includes('wear')) return false;
+            // Strict matching: The product's category must match the selected category
+            // We verify if the product category *includes* the url param to allow flexibility "Mens Fashion" matching "fashion"
+            // But checking strictly against "book" vs "notebook" issue:
+            // "Books" should match "books". "Laptops" should match "laptops".
+
+            if (prodCat !== catLower && !prodCat.includes(catLower)) {
+                return false;
             }
         }
 
@@ -161,21 +164,21 @@ export default function Home() {
                     <Col md={9} lg={10}>
                         {/* 1. HERO CAROUSEL SECTION (Only on Home, no search/category) */}
                         {!searchQuery && !category && (
-                            <Carousel className="mb-5 shadow-sm rounded overflow-hidden" controls={false} indicators={true} interval={5000} pause="hover">
+                            <Carousel className="mb-4 shadow-sm rounded overflow-hidden" controls={false} indicators={true} interval={5000} pause="hover">
                                 {/* SLIDE 1: Mid-Season Sale */}
                                 <Carousel.Item>
                                     <div
-                                        className="w-100 d-flex align-items-center justify-content-center text-white text-center"
+                                        className="w-100 d-flex align-items-center justify-content-center text-white text-center hero-carousel-item"
                                         style={{
                                             height: '400px',
                                             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                         }}
                                     >
                                         <div className="px-4">
-                                            <h2 className="display-4 fw-bold animated fadeInDown">MID-SEASON SALE</h2>
-                                            <p className="lead animated fadeInUp delay-1s">Up to 50% Off Selected Items.</p>
+                                            <h2 className="display-4 fw-bold animated fadeInDown fs-1-mobile">MID-SEASON SALE</h2>
+                                            <p className="lead animated fadeInUp delay-1s d-none d-sm-block">Up to 50% Off Selected Items.</p>
                                             <Link to="/sales">
-                                                <Button variant="light" size="lg" className="rounded-pill px-5 fw-bold mt-3 shadow-sm hover-scale">
+                                                <Button variant="light" size="lg" className="rounded-pill px-4 px-md-5 fw-bold mt-3 shadow-sm hover-scale fs-6">
                                                     Shop Now
                                                 </Button>
                                             </Link>
@@ -186,7 +189,7 @@ export default function Home() {
                                 {/* SLIDE 2: Lifestyle Image */}
                                 <Carousel.Item>
                                     <div
-                                        className="w-100 d-flex align-items-center justify-content-center text-white text-center position-relative"
+                                        className="w-100 d-flex align-items-center justify-content-center text-white text-center position-relative hero-carousel-item"
                                         style={{
                                             height: '400px',
                                             backgroundImage: "url('https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop')",
@@ -196,10 +199,10 @@ export default function Home() {
                                     >
                                         <div className="position-absolute top-0 start-0 w-100 h-100 bg-black bg-opacity-50"></div>
                                         <div className="position-relative z-2 px-4">
-                                            <h2 className="display-4 fw-bold">New Arrivals</h2>
-                                            <p className="lead">Discover the latest trends in fashion and tech.</p>
+                                            <h2 className="display-4 fw-bold fs-1-mobile">New Arrivals</h2>
+                                            <p className="lead d-none d-sm-block">Discover the latest trends in fashion and tech.</p>
                                             <Link to="/categories">
-                                                <Button variant="outline-light" size="lg" className="rounded-pill px-5 fw-bold mt-3 hover-scale">
+                                                <Button variant="outline-light" size="lg" className="rounded-pill px-4 px-md-5 fw-bold mt-3 hover-scale fs-6">
                                                     View Collection
                                                 </Button>
                                             </Link>
@@ -210,17 +213,17 @@ export default function Home() {
                                 {/* SLIDE 3: Brand Promo */}
                                 <Carousel.Item>
                                     <div
-                                        className="w-100 d-flex align-items-center justify-content-center text-white text-center"
+                                        className="w-100 d-flex align-items-center justify-content-center text-white text-center hero-carousel-item"
                                         style={{
                                             height: '400px',
                                             background: 'linear-gradient(to right, #434343 0%, black 100%)'
                                         }}
                                     >
                                         <div className="px-4">
-                                            <h2 className="display-4 fw-bold">Member Exclusive</h2>
-                                            <p className="lead">Free shipping on all orders over RM50.</p>
+                                            <h2 className="display-4 fw-bold fs-1-mobile">Member Exclusive</h2>
+                                            <p className="lead d-none d-sm-block">Free shipping on all orders over RM50.</p>
                                             <Link to="/login">
-                                                <Button variant="warning" size="lg" className="rounded-pill px-5 fw-bold mt-3 text-dark">
+                                                <Button variant="warning" size="lg" className="rounded-pill px-4 px-md-5 fw-bold mt-3 text-dark fs-6">
                                                     Join Today
                                                 </Button>
                                             </Link>
@@ -231,31 +234,33 @@ export default function Home() {
                         )}
 
 
+                        {/* MOBILE CATEGORY SCROLL (Visible only on mobile/tablet) */}
+                        <div className="d-md-none mb-4">
+                            <div className="horizontal-scroll px-2">
+                                {['All Products', 'Electronics', 'Fashion', 'Home', 'Beauty', 'Sports', 'Toys'].map(cat => (
+                                    <div
+                                        key={cat}
+                                        className={`category-pill cursor-pointer ${category === cat.toLowerCase() || (!category && cat === 'All Products') ? 'active' : ''}`}
+                                        onClick={() => navigate(cat === 'All Products' ? '/' : `/c/${cat.toLowerCase()}`)}
+                                    >
+                                        {cat}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+
                         {/* 2. RECENTLY VIEWED (If any, and no search/category) */}
                         {!searchQuery && !category && recentProducts.length > 0 && (
-                            <div className="mb-5">
-                                <Row xs={1} md={2} lg={4} xl={5} className="g-3">
+                            <div>
+                                <h4 className="fw-bold mb-3">Recently Viewed</h4>
+                                <Row xs={2} md={2} lg={4} xl={5} className="g-3">
                                     {recentProducts.map((product) => (
                                         <Col key={'recent-' + product.id}>
-                                            <Card className="h-100 border-0 shadow-sm product-card" onClick={() => navigate(`/products/${product.id}`)}>
-                                                <div className="position-relative overflow-hidden">
-                                                    <div className="position-absolute top-0 start-0 m-2 badge bg-secondary small bg-opacity-75">
-                                                        Recent
-                                                    </div>
-                                                    <Card.Img
-                                                        variant="top"
-                                                        src={product.image_url}
-                                                        style={{ height: '180px', objectFit: 'cover' }}
-                                                        className="product-img-zoom"
-                                                    />
-                                                </div>
-                                                <Card.Body className="p-3">
-                                                    <Card.Title className="fw-bold text-truncate small">{product.name}</Card.Title>
-                                                    <div className="d-flex justify-content-between align-items-center">
-                                                        <h6 className="mb-0 fw-bold text-dark">RM{product.price}</h6>
-                                                    </div>
-                                                </Card.Body>
-                                            </Card>
+                                            <ProductCard
+                                                product={product}
+                                                navigate={navigate}
+                                            />
                                         </Col>
                                     ))}
                                 </Row>
@@ -325,46 +330,14 @@ export default function Home() {
                                     )}
                                 </div>
                             )}
-                            <Row xs={1} md={2} lg={4} xl={5} className="g-4">
+                            <Row xs={2} md={2} lg={4} xl={5} className="g-4">
                                 {filteredProducts.map((product) => (
                                     <Col key={product.id}>
-                                        <Card className="h-100 border-0 shadow-sm product-card" onClick={() => navigate(`/products/${product.id}`)}>
-                                            <div className="position-relative overflow-hidden">
-                                                <Card.Img
-                                                    variant="top"
-                                                    src={product.image_url}
-                                                    style={{ height: '220px', objectFit: 'cover' }}
-                                                    className="product-img-zoom"
-                                                />
-                                            </div>
-
-                                            <Card.Body>
-                                                <Card.Title className="fw-bold text-truncate">{product.name}</Card.Title>
-                                                <Card.Text className="text-muted small text-truncate">
-                                                    {product.description || "No description available."}
-                                                </Card.Text>
-
-                                                {/* Real Rating Display */}
-                                                <div className="d-flex align-items-center mb-2">
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <FaStar
-                                                            key={i}
-                                                            size={14}
-                                                            className={i < Math.round(product.average_rating || 0) ? "text-warning" : "text-muted"}
-                                                            style={{ opacity: i < Math.round(product.average_rating || 0) ? 1 : 0.3 }}
-                                                        />
-                                                    ))}
-                                                    <span className="ms-1 small text-muted">({product.review_count || 0})</span>
-                                                </div>
-
-                                                <div className="d-flex justify-content-between align-items-center mt-auto">
-                                                    <h5 className="mb-0 fw-bold text-dark">RM{product.price}</h5>
-                                                    <Button variant="outline-dark" size="sm" className="rounded-circle px-2" onClick={(e) => handleQuickAddClick(e, product)}>
-                                                        +
-                                                    </Button>
-                                                </div>
-                                            </Card.Body>
-                                        </Card>
+                                        <ProductCard
+                                            product={product}
+                                            navigate={navigate}
+                                            onQuickAdd={handleQuickAddClick}
+                                        />
                                     </Col>
                                 ))}
                             </Row>

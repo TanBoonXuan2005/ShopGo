@@ -99,6 +99,11 @@ async function initDatabase() {
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS store_background_url TEXT;`);
         } catch (err) { console.log("Migration note (store_background_url):", err.message); }
 
+        // Migration: Ensure discount_percentage exists
+        try {
+            await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percentage INT DEFAULT 0;`);
+        } catch (err) { console.log("Migration note (discount_percentage):", err.message); }
+
         // Migration: Ensure profile_image_url exists (User Avatar)
         try {
             await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url TEXT;`);
@@ -493,8 +498,8 @@ app.post("/products", async (req, res) => {
         }
 
         const query = `
-      INSERT INTO products(seller_id, name, description, price, image_url, category, stock)
-VALUES($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO products(seller_id, name, description, price, image_url, category, stock, discount_percentage)
+VALUES($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 `;
 
@@ -505,7 +510,8 @@ RETURNING *;
             price,
             image_url,
             category,
-            stock || 0
+            stock || 0,
+            req.body.discount_percentage || 0
         ]);
         res.json(newProduct.rows[0]);
     } catch (error) {
@@ -514,16 +520,68 @@ RETURNING *;
     }
 });
 
+// Search Suggestions Endpoint
+app.get("/search-suggestions", async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) return res.json([]);
+
+        // Case-insensitive search
+        const query = `
+            SELECT id, name, category 
+            FROM products 
+            WHERE name ILIKE $1 
+            LIMIT 5
+        `;
+        const result = await pool.query(query, [`%${q}%`]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Search error:", err);
+        res.status(500).json({ error: "Server Error" });
+    }
+});
+
+// Helper: Seeded Random Generator for Backend
+function getSeededRandom(seed) {
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+}
+
+function calculateDailyDiscount(product) {
+    // If product has a real DB discount, use it (Master Override)
+    if (product.discount_percentage > 0) return product;
+
+    // Generate Unique Daily Seed
+    const todayStr = new Date().toDateString(); // "Mon Jan 19 2026"
+    const todaySeed = todayStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+    // Create stable seed from Product ID (Always use integer value)
+    const prodIdNum = parseInt(product.id, 10);
+
+    const seed = prodIdNum + todaySeed;
+    const rand = getSeededRandom(seed); // 0 to 1
+
+    // 40% Chance to be in Flash Sale
+    if (rand < 0.4) {
+        // Discount tiers: 10, 20, 30, 40, 50
+        const discountRand = getSeededRandom(seed + 123);
+        const discount = Math.floor(discountRand * 5 + 1) * 10;
+        return { ...product, discount_percentage: discount };
+    }
+
+    return product;
+}
+
 // Get all products (with average rating, optional filter by seller_id)
 app.get("/products", async (req, res) => {
     try {
         const { seller_id } = req.query;
         let queryText = `
             SELECT p.*,
-    COALESCE(AVG(r.rating), 0) as average_rating,
-    COUNT(r.id) as review_count 
-            FROM products p 
-            LEFT JOIN reviews r ON p.id = r.product_id
+            (SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE product_id = p.id) as average_rating,
+    (SELECT COUNT(id) FROM reviews WHERE product_id = p.id) as review_count,
+        (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.product_id = p.id AND o.status NOT IN ('pending', 'cancelled')) as items_sold
+            FROM products p
     `;
 
         const params = [];
@@ -543,10 +601,14 @@ app.get("/products", async (req, res) => {
             params.push(filterId);
         }
 
-        queryText += ` GROUP BY p.id ORDER BY p.created_at DESC; `;
+        queryText += ` ORDER BY p.created_at DESC; `;
 
         const products = await pool.query(queryText, params);
-        res.json(products.rows);
+
+        // Apply Daily Flash Sale Logic
+        const processedProducts = products.rows.map(p => calculateDailyDiscount(p));
+
+        res.json(processedProducts);
     } catch (error) {
         res.status(500).json({ error: "Server Error" });
     }
@@ -556,13 +618,13 @@ app.get("/products", async (req, res) => {
 app.put("/products/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, price, stock, category, image_url } = req.body;
+        const { name, description, price, stock, category, image_url, discount_percentage } = req.body;
 
         const result = await pool.query(
             `UPDATE products
-             SET name = $1, description = $2, price = $3, stock = $4, category = $5, image_url = COALESCE($6, image_url)
+             SET name = $1, description = $2, price = $3, stock = $4, category = $5, image_url = COALESCE($6, image_url), discount_percentage = COALESCE($8, discount_percentage)
              WHERE id = $7 RETURNING * `,
-            [name, description, price, stock, category, image_url, id]
+            [name, description, price, stock, category, image_url, id, discount_percentage]
         );
 
         if (result.rows.length === 0) {
@@ -625,7 +687,11 @@ app.get("/products/:id", async (req, res) => {
         if (product.rows.length === 0) {
             return res.status(404).json({ error: "Product not found" });
         }
-        res.json(product.rows[0]);
+
+        // Apply Daily Flash Sale Logic
+        const processedProduct = calculateDailyDiscount(product.rows[0]);
+
+        res.json(processedProduct);
     } catch (error) {
         console.error("Error fetching product:", error);
         res.status(500).json({ error: "Server Error" });
@@ -1310,8 +1376,8 @@ app.post("/create-checkout-session", async (req, res) => {
             payment_method_types: req.body.paymentMethodType || ["card"],
             line_items: lineItems,
             mode: "payment",
-            success_url: `http://localhost:5173/success?order_id=${orderId}`, // Pass orderId to success page
-            cancel_url: `http://localhost:5173/payment-cancel?order_id=${orderId}`, // Clean up order on cancel
+            success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/success?order_id=${orderId}`, // Pass orderId to success page
+            cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment-cancel?order_id=${orderId}`, // Clean up order on cancel
         };
 
         // 4. Apply Discount (if any)
@@ -1343,6 +1409,7 @@ app.post("/create-checkout-session", async (req, res) => {
     }
 });
 
-app.listen(5000, () => {
-    console.log("Server is running on port 5000");
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });

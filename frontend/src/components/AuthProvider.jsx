@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
             if (user) {
                 // Fetch user logic from our DB to get the role
                 try {
-                    const API_URL = 'http://localhost:5000';
+                    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
                     const res = await fetch(`${API_URL}/users`, {
                         method: 'POST',
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
     const refreshUser = async () => {
         if (currentUser) {
             try {
-                const API_URL = 'http://localhost:5000';
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
                 // GET user by logic (using the POST trick again or explicit GET)
                 // Let's stick to the POST update-or-get pattern for simplicity as we implemented it
                 const res = await fetch(`${API_URL}/users`, {

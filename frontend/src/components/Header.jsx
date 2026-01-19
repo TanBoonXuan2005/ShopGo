@@ -11,6 +11,7 @@ import Chatbot from "./Chatbot";
 
 export default function Header() {
     const location = useLocation(); // Use location hook
+    const navigate = useNavigate();
     const { currentUser } = useContext(AuthContext);
     const { getCartCount } = useCart(); // Use custom hook
     const userProfileImage = currentUser?.photoURL;
@@ -19,9 +20,34 @@ export default function Header() {
 
     // Logic for Search
     const [searchTerm, setSearchTerm] = useState("");
+    const [suggestions, setSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+
+    useEffect(() => {
+        const timeoutId = setTimeout(async () => {
+            if (searchTerm.length < 2) {
+                setSuggestions([]);
+                setShowSuggestions(false);
+                return;
+            }
+            try {
+                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/search-suggestions?q=${encodeURIComponent(searchTerm)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setSuggestions(data);
+                    setShowSuggestions(data.length > 0);
+                }
+            } catch (err) {
+                console.error("Search fetch error", err);
+            }
+        }, 300); // 300ms debounce
+
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm]);
 
     const handleSearch = (e) => {
         e.preventDefault();
+        setShowSuggestions(false);
 
         // If we are on a store page, search within that store
         if (location.pathname.startsWith('/store/')) {
@@ -65,7 +91,7 @@ export default function Header() {
 
     const fetchNotifications = async () => {
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const res = await fetch(`${API_URL}/notifications/${currentUser.uid}`);
             if (res.ok) {
                 const data = await res.json();
@@ -78,7 +104,7 @@ export default function Header() {
 
     const markAsRead = async (id) => {
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             await fetch(`${API_URL}/notifications/${id}/read`, { method: 'PUT' });
             // Update local state
             setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
@@ -90,7 +116,7 @@ export default function Header() {
     const markAllAsRead = async () => {
         if (unreadCount === 0) return;
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             await fetch(`${API_URL}/notifications/read-all/${currentUser.uid}`, { method: 'PUT' });
             // Update local state immediately
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
@@ -103,9 +129,9 @@ export default function Header() {
         <>
             {/* Sticky Navbar with Backdrop Filter for Modern Glass Effect */}
             <Navbar expand="lg" sticky="top" className="bg-white bg-opacity-95 shadow-sm py-3" style={{ backdropFilter: 'blur(10px)' }}>
-                <Container fluid className="px-5">
+                <Container fluid className="px-3 px-lg-5">
                     {/* BRAND LOGO */}
-                    <Navbar.Brand as={Link} to="/" className="d-flex align-items-center fw-bolder fs-3 text-dark tracking-tight me-5">
+                    <Navbar.Brand as={Link} to="/" className="d-flex align-items-center fw-bolder fs-3 text-dark tracking-tight me-lg-5">
                         <img src="/ShopGo-logo.jpg" alt="ShopGo" height="40" className="me-2" />
                         ShopGo
                     </Navbar.Brand>
@@ -114,7 +140,7 @@ export default function Header() {
 
                     <Navbar.Collapse id="navbarScroll">
                         {/* SEARCH BAR (Centered) */}
-                        <Form className="d-flex mx-auto w-50" onSubmit={handleSearch}>
+                        <Form className="d-flex mx-auto position-relative search-bar-container" onSubmit={handleSearch}>
                             <InputGroup>
                                 <InputGroup.Text className="bg-light border-end-0 text-muted ps-3 rounded-start-pill">
                                     <FaSearch />
@@ -126,9 +152,34 @@ export default function Header() {
                                     aria-label="Search"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
+                                    onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                 />
                                 <Button variant="dark" type="submit" className="rounded-end-pill px-4 fw-bold">Search</Button>
                             </InputGroup>
+
+                            {/* Suggestions Dropdown */}
+                            {showSuggestions && suggestions.length > 0 && (
+                                <div className="position-absolute w-100 bg-white shadow-lg rounded-bottom start-0 overflow-hidden" style={{ top: '100%', zIndex: 1000, borderRadius: '0 0 15px 15px' }}>
+                                    {suggestions.map(s => (
+                                        <div
+                                            key={s.id}
+                                            className="px-4 py-2 border-bottom hover-bg-light cursor-pointer text-dark d-flex justify-content-between align-items-center"
+                                            onClick={() => {
+                                                setSearchTerm(s.name);
+                                                setShowSuggestions(false);
+                                                navigate(`/?search=${encodeURIComponent(s.name)}`);
+                                            }}
+                                            style={{ transition: 'background-color 0.2s', cursor: 'pointer' }}
+                                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                                        >
+                                            <span className="fw-medium">{s.name}</span>
+                                            <Badge bg="light" text="dark" className="fw-normal">{s.category}</Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </Form>
 
                         {/* RIGHT SIDE ICONS */}

@@ -31,7 +31,7 @@ export default function Orders() {
         if (!currentUser) return;
         setLoadingOrders(true);
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const res = await fetch(`${API_URL}/orders/${currentUser.uid}`);
             if (res.ok) {
                 const data = await res.json();
@@ -51,7 +51,7 @@ export default function Orders() {
 
     const updateOrderStatus = async (orderId, newStatus) => {
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const res = await fetch(`${API_URL}/orders/${orderId}/status`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -68,7 +68,7 @@ export default function Orders() {
 
     const handleRating = async (orderId) => {
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const res = await fetch(`${API_URL}/orders/${orderId}/rate`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -100,7 +100,7 @@ export default function Orders() {
     const confirmCancelOrder = async () => {
         if (!orderToCancel) return;
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const res = await fetch(`${API_URL}/orders/${orderToCancel}`, {
                 method: 'DELETE'
             });
@@ -136,7 +136,7 @@ export default function Orders() {
 
         setLoadingReviews(prev => ({ ...prev, [productId]: true }));
         try {
-            const API_URL = 'http://localhost:5000';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const res = await fetch(`${API_URL}/reviews`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

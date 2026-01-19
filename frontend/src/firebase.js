@@ -8,12 +8,12 @@ import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyC_QZdUHQbXHNjzdAGxxiXPRLfu9styp_U",
-  authDomain: "capstone-project-d17b1.firebaseapp.com",
-  projectId: "capstone-project-d17b1",
-  storageBucket: "capstone-project-d17b1.firebasestorage.app",
-  messagingSenderId: "769772272390",
-  appId: "1:769772272390:web:2802b39d6cc9b1cadffc87"
+  apiKey: import.meta.env.VITE_API_KEY,
+  authDomain: import.meta.env.VITE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_APP_ID,
 };
 
 // Initialize Firebase

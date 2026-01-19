@@ -20,7 +20,7 @@ export default function Cart() {
         const fetchVouchers = async () => {
             const uid = currentUser ? currentUser.uid : "";
             try {
-                const res = await fetch(`http://127.0.0.1:5000/vouchers?firebase_uid=${uid}`);
+                const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/vouchers?firebase_uid=${uid}`);
                 if (res.ok) {
                     setVouchers(await res.json());
                 }
@@ -34,14 +34,14 @@ export default function Cart() {
     const handleClaimVoucher = async (voucherId) => {
         if (!currentUser) return navigate("/login");
         try {
-            const res = await fetch(`http://127.0.0.1:5000/vouchers/claim`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/vouchers/claim`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ firebase_uid: currentUser.uid, voucher_id: voucherId })
             });
             if (res.ok) {
                 // Refresh list to update 'is_claimed'
-                const res2 = await fetch(`http://127.0.0.1:5000/vouchers?firebase_uid=${currentUser.uid}`);
+                const res2 = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/vouchers?firebase_uid=${currentUser.uid}`);
                 if (res2.ok) setVouchers(await res2.json());
             } else {
                 alert("Could not claim voucher");
@@ -96,7 +96,7 @@ export default function Cart() {
     }
 
     return (
-        <Container className="py-5">
+        <Container className="py-3 py-md-5">
             <h1 className="fw-bold mb-5 display-5">Cart</h1>
 
             <Row>

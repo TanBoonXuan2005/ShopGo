@@ -23,7 +23,7 @@ export default function Success() {
 
             try {
                 // Call backend to update order status to 'paid'
-                const API_URL = 'http://localhost:5000';
+                const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
                 const response = await fetch(`${API_URL}/orders/${orderId}/status`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },

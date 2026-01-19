@@ -35,7 +35,7 @@ export default function Checkout() {
     const isCanceled = searchParams.get("canceled");
 
     const [showResumeModal, setShowResumeModal] = useState(false);
-    const API_URL = 'http://127.0.0.1:5000';
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     useEffect(() => {
         if (!currentUser) {
@@ -255,7 +255,7 @@ export default function Checkout() {
 
     // Use finalTotal for display
     return (
-        <Container className="py-5" style={{ minHeight: '80vh' }}>
+        <Container className="py-3 py-md-5" style={{ minHeight: '80vh' }}>
             {/* RESUME PAYMENT MODAL */}
             <Modal show={showResumeModal} onHide={() => setShowResumeModal(false)} centered>
                 <Modal.Header closeButton>
@@ -272,9 +272,9 @@ export default function Checkout() {
                 </Modal.Footer>
             </Modal>
 
-            <h1 className="fw-bold mb-5 display-6">Checkout</h1>
+            <h1 className="fw-bold mb-4 mb-md-5 display-6">Checkout</h1>
 
-            <Row>
+            <Row className="g-4">
                 <Col md={7}>
                     <Card className="border-0 shadow-sm p-4 mb-4">
                         <h4 className="fw-bold mb-4">Payment Method</h4>
