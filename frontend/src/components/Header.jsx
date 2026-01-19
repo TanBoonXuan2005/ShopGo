@@ -127,219 +127,276 @@ export default function Header() {
 
     return (
         <>
-            {/* Sticky Navbar with Backdrop Filter for Modern Glass Effect */}
-            <Navbar expand="lg" sticky="top" className="bg-white bg-opacity-95 shadow-sm py-3" style={{ backdropFilter: 'blur(10px)' }}>
-                <Container fluid className="px-3 px-lg-5">
-                    {/* BRAND LOGO */}
-                    <Navbar.Brand as={Link} to="/" className="d-flex align-items-center fw-bolder fs-3 text-dark tracking-tight me-lg-5">
-                        <img src="/ShopGo-logo.jpg" alt="ShopGo" height="40" className="me-2" />
-                        ShopGo
-                    </Navbar.Brand>
+            <Navbar expand="lg" sticky="top" className="bg-white bg-opacity-95 shadow-sm py-2 py-lg-3" style={{ backdropFilter: 'blur(10px)' }}>
+                <Container fluid className="px-3 px-lg-5 flex-wrap">
+                    <div className="d-flex align-items-center justify-content-between w-100 d-lg-none">
+                        {/* MOBILE BRAND */}
+                        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center fw-bolder fs-3 text-dark tracking-tight">
+                            <img src="/ShopGo-logo.jpg" alt="ShopGo" height="35" className="me-2" />
+                            ShopGo
+                        </Navbar.Brand>
 
-                    <Navbar.Toggle aria-controls="navbarScroll" />
-
-                    <Navbar.Collapse id="navbarScroll">
-                        {/* SEARCH BAR (Centered) */}
-                        <Form className="d-flex mx-auto position-relative search-bar-container" onSubmit={handleSearch}>
-                            <InputGroup>
-                                <InputGroup.Text className="bg-light border-end-0 text-muted ps-3 rounded-start-pill">
-                                    <FaSearch />
-                                </InputGroup.Text>
-                                <Form.Control
-                                    type="search"
-                                    placeholder={location.pathname.startsWith('/store/') ? "Search in this shop..." : "Search for products..."}
-                                    className="bg-light border-start-0 border-end-0 shadow-none"
-                                    aria-label="Search"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
-                                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                                />
-                                <Button variant="dark" type="submit" className="rounded-end-pill px-4 fw-bold">Search</Button>
-                            </InputGroup>
-
-                            {/* Suggestions Dropdown */}
-                            {showSuggestions && suggestions.length > 0 && (
-                                <div className="position-absolute w-100 bg-white shadow-lg rounded-bottom start-0 overflow-hidden" style={{ top: '100%', zIndex: 1000, borderRadius: '0 0 15px 15px' }}>
-                                    {suggestions.map(s => (
-                                        <div
-                                            key={s.id}
-                                            className="px-4 py-2 border-bottom hover-bg-light cursor-pointer text-dark d-flex justify-content-between align-items-center"
-                                            onClick={() => {
-                                                setSearchTerm(s.name);
-                                                setShowSuggestions(false);
-                                                navigate(`/?search=${encodeURIComponent(s.name)}`);
-                                            }}
-                                            style={{ transition: 'background-color 0.2s', cursor: 'pointer' }}
-                                            onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
-                                            onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
-                                        >
-                                            <span className="fw-medium">{s.name}</span>
-                                            <Badge bg="light" text="dark" className="fw-normal">{s.category}</Badge>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </Form>
-
-                        {/* RIGHT SIDE ICONS */}
-                        <Nav className="ms-auto d-flex align-items-center gap-3 mt-3 mt-lg-0">
-
-                            {/* SALES ICON (hidden on mobile if needed, or kept) */}
-                            <Nav.Link as={Link} to="/sales" className="text-danger fw-bold d-flex align-items-center gap-1 hover-scale">
-                                <span className="d-none d-lg-inline">🔥 Sale</span>
-                            </Nav.Link>
-
-                            {/* ORDERS ICON (New Placement) */}
+                        {/* MOBILE ACTIONS (Cart + Toggle) */}
+                        <div className="d-flex align-items-center gap-1">
+                            <Link to="/sales" className="text-danger p-2 fw-bold text-decoration-none">
+                                <span style={{ fontSize: '1.2rem' }}>🔥</span>
+                            </Link>
                             {currentUser && (
-                                <Nav.Link as={Link} to="/orders" className="text-dark d-flex align-items-center" title="My Purchases">
-                                    <div className="p-2 rounded-circle bg-light hover-bg-gray transition-all">
-                                        <FaClipboardList size={20} />
-                                    </div>
-                                </Nav.Link>
+                                <>
+                                    <Link to="/orders" className="text-dark p-2">
+                                        <FaClipboardList size={22} />
+                                    </Link>
+                                    <Link to="/profile" className="text-dark p-2">
+                                        <FaUser size={20} />
+                                    </Link>
+                                </>
                             )}
-                            {/* NOTIFICATIONS ICON */}
-                            {currentUser && (
-                                <Dropdown align="end" onToggle={(isOpen) => { if (isOpen) markAllAsRead(); }}>
-                                    <Dropdown.Toggle as="div" className="position-relative text-dark d-flex align-items-center cursor-pointer after-none" id="dropdown-notifications">
-                                        <div className="p-2 rounded-circle bg-light hover-bg-gray transition-all">
-                                            <FaBell size={20} className={unreadCount > 0 ? "text-primary anim-swing" : ""} />
-                                        </div>
-                                        {unreadCount > 0 && (
-                                            <Badge bg="danger" pill className="position-absolute translate-middle border border-light" style={{ top: '10px', left: '80%', fontSize: '0.6rem' }}>
-                                                {unreadCount}
-                                            </Badge>
-                                        )}
-                                    </Dropdown.Toggle>
-                                    <Dropdown.Menu className="shadow-lg border-0 rounded-4 mt-3 p-0 overflow-hidden" style={{ width: '320px', maxHeight: '400px', overflowY: 'auto' }}>
-                                        <div className="px-3 py-3 bg-white border-bottom d-flex justify-content-between align-items-center sticky-top">
-                                            <span className="fw-bold text-dark">Notifications</span>
-                                            {unreadCount > 0 && <span className="badge bg-primary rounded-pill">{unreadCount} New</span>}
-                                        </div>
-                                        {notifications.length === 0 ? (
-                                            <div className="p-5 text-center text-muted">
-                                                <FaBell size={24} className="mb-2 opacity-50" />
-                                                <p className="small mb-0">No notifications yet</p>
-                                            </div>
-                                        ) : (
-                                            notifications.map(n => (
-                                                <Dropdown.Item key={n.id} className={`p-3 border-bottom text-wrap ${!n.is_read ? 'bg-indigo-light' : ''}`} onClick={() => markAsRead(n.id)} style={{ whiteSpace: 'normal', backgroundColor: !n.is_read ? '#f0f4ff' : 'white' }}>
-                                                    <div className="d-flex w-100 justify-content-between mb-1">
-                                                        <strong className="small text-dark">{n.title}</strong>
-                                                        <small className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(n.created_at).toLocaleDateString()}</small>
-                                                    </div>
-                                                    <p className="mb-0 small text-secondary lh-sm">{n.message}</p>
-                                                </Dropdown.Item>
-                                            ))
-                                        )}
-                                    </Dropdown.Menu>
-                                </Dropdown>
-                            )}
-
-                            {/* CART ICON */}
-                            <Nav.Link as={Link} to="/cart" className="position-relative text-dark d-flex align-items-center">
-                                <div className="p-2 rounded-circle bg-light hover-bg-gray transition-all">
-                                    <FaShoppingCart size={20} />
-                                </div>
+                            <Link to="/cart" className="position-relative text-dark p-2">
+                                <FaShoppingCart size={22} />
                                 {getCartCount() > 0 && (
-                                    <Badge
-                                        bg="danger"
-                                        pill
-                                        className="position-absolute translate-middle border border-light"
-                                        style={{ top: '10px', left: '80%', fontSize: '0.7rem', padding: '0.35em 0.5em' }}
-                                    >
+                                    <Badge bg="danger" pill className="position-absolute translate-middle border border-light" style={{ top: '8px', left: '85%', fontSize: '0.65rem' }}>
                                         {getCartCount()}
                                     </Badge>
                                 )}
-                            </Nav.Link>
+                            </Link>
+                            <Navbar.Toggle aria-controls="navbarMobileScroll" className="border-0 p-1" />
+                        </div>
+                    </div>
 
-                            {/* AUTH / PROFILE */}
-                            {currentUser ? (
-                                <Dropdown align="end">
-                                    <Dropdown.Toggle variant="transparent" className="border-0 p-0 text-dark d-flex align-items-center after-none" id="dropdown-profile">
-                                        {userProfileImage ? (
-                                            <Image
-                                                src={userProfileImage}
-                                                roundedCircle
-                                                width={40}
-                                                height={40}
-                                                className="border border-2 border-white shadow-sm object-fit-cover"
-                                            />
-                                        ) : (
-                                            <div className="p-2 rounded-circle bg-light border">
-                                                <FaUser size={20} />
+                    {/* MOBILE SEARCH BAR (Visible below brand on mobile) */}
+                    <div className="w-100 d-lg-none mt-2">
+                        <Form className="d-flex position-relative" onSubmit={handleSearch}>
+                            <InputGroup size="sm">
+                                <InputGroup.Text className="bg-light border-end-0 ps-3 rounded-start-pill">
+                                    <FaSearch className="text-muted" />
+                                </InputGroup.Text>
+                                <Form.Control
+                                    type="search"
+                                    placeholder="Search..."
+                                    className="bg-light border-start-0 border-end-0 shadow-none"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                                <Button variant="dark" type="submit" className="rounded-end-pill px-3">Search</Button>
+                            </InputGroup>
+                        </Form>
+                    </div>
+
+                    {/* DESKTOP CONTENT (Hidden on Mobile via Collapse/Classes) */}
+                    <div className="d-none d-lg-flex align-items-center w-100">
+                        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center fw-bolder fs-3 text-dark tracking-tight me-5">
+                            <img src="/ShopGo-logo.jpg" alt="ShopGo" height="40" className="me-2" />
+                            ShopGo
+                        </Navbar.Brand>
+
+                        <Navbar.Collapse id="navbarScroll">
+                            {/* DESKTOP SEARCH BAR */}
+                            <Form className="d-flex mx-auto position-relative search-bar-container" onSubmit={handleSearch}>
+                                <InputGroup>
+                                    <InputGroup.Text className="bg-light border-end-0 text-muted ps-3 rounded-start-pill">
+                                        <FaSearch />
+                                    </InputGroup.Text>
+                                    <Form.Control
+                                        type="search"
+                                        placeholder={location.pathname.startsWith('/store/') ? "Search in this shop..." : "Search for products..."}
+                                        className="bg-light border-start-0 border-end-0 shadow-none"
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                                    />
+                                    <Button variant="dark" type="submit" className="rounded-end-pill px-4 fw-bold">Search</Button>
+                                </InputGroup>
+
+                                {/* Suggestions Dropdown */}
+                                {showSuggestions && suggestions.length > 0 && (
+                                    <div className="position-absolute w-100 bg-white shadow-lg rounded-bottom start-0 overflow-hidden" style={{ top: '100%', zIndex: 1000, borderRadius: '0 0 15px 15px' }}>
+                                        {suggestions.map(s => (
+                                            <div
+                                                key={s.id}
+                                                className="px-4 py-2 border-bottom hover-bg-light cursor-pointer text-dark d-flex justify-content-between align-items-center"
+                                                onClick={() => {
+                                                    setSearchTerm(s.name);
+                                                    setShowSuggestions(false);
+                                                    navigate(`/?search=${encodeURIComponent(s.name)}`);
+                                                }}
+                                                style={{ transition: 'background-color 0.2s', cursor: 'pointer' }}
+                                                onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
+                                                onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                                            >
+                                                <span className="fw-medium">{s.name}</span>
+                                                <Badge bg="light" text="dark" className="fw-normal">{s.category}</Badge>
                                             </div>
-                                        )}
-                                    </Dropdown.Toggle>
+                                        ))}
+                                    </div>
+                                )}
+                            </Form>
 
-                                    <Dropdown.Menu className="shadow-lg border-0 rounded-4 mt-3 p-0 overflow-hidden animate-slide-in" style={{ minWidth: '260px' }}>
-                                        {/* User Header */}
-                                        <div className="px-4 py-3 bg-light border-bottom">
-                                            <p className="mb-0 fw-bold text-dark text-truncate" style={{ fontSize: '0.95rem' }}>{currentUser.displayName || "User"}</p>
-                                            <p className="mb-0 small text-muted text-truncate">{currentUser.email}</p>
+                            {/* RIGHT SIDE ICONS */}
+                            <Nav className="ms-auto d-flex align-items-center gap-3">
+                                {/* SALES ICON */}
+                                <Nav.Link as={Link} to="/sales" className="text-danger fw-bold d-flex align-items-center gap-1 hover-scale">
+                                    <span className="">🔥 Sale</span>
+                                </Nav.Link>
+
+                                {/* ORDERS */}
+                                {currentUser && (
+                                    <Nav.Link as={Link} to="/orders" className="text-dark d-flex align-items-center">
+                                        <div className="p-2 rounded-circle bg-light hover-bg-gray transition-all">
+                                            <FaClipboardList size={20} />
                                         </div>
-
-                                        <div className="p-2">
-                                            {/* Wallet - Highlighted */}
-                                            <Dropdown.Item as={Link} to="/wallet" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
-                                                <div className="d-flex align-items-center justify-content-center bg-white rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
-                                                    <FaWallet size={14} className="text-dark" />
-                                                </div>
-                                                My Wallet
-                                            </Dropdown.Item>
-
-                                            {/* My Purchase (Restored here for quick access) */}
-                                            <Dropdown.Item as={Link} to="/orders" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
-                                                <div className="d-flex align-items-center justify-content-center bg-light rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
-                                                    <FaBoxOpen size={14} className="text-dark" />
-                                                </div>
-                                                My Orders
-                                            </Dropdown.Item>
-
-                                            {/* Profile */}
-                                            <Dropdown.Item as={Link} to="/profile" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
-                                                <div className="d-flex align-items-center justify-content-center bg-light rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
-                                                    <FaUserCog size={14} className="text-dark" />
-                                                </div>
-                                                Profile & Settings
-                                            </Dropdown.Item>
-
-                                            {/* Seller Logic */}
-                                            {currentUser.role === 'seller' && currentUser.dbId ? (
-                                                <Dropdown.Item as={Link} to={`/store/${currentUser.dbId}`} className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
-                                                    <div className="d-flex align-items-center justify-content-center bg-light bg-opacity-25 rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
-                                                        <FaStore size={14} className="text-dark" />
-                                                    </div>
-                                                    Seller Centre
-                                                </Dropdown.Item>
-                                            ) : (
-                                                <Dropdown.Item as={Link} to="/seller-register" className="rounded-3 py-2 mb-1 d-flex align-items-center text-primary">
-                                                    <div className="d-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
-                                                        <FaStore size={14} />
-                                                    </div>
-                                                    Become a Seller
-                                                </Dropdown.Item>
+                                    </Nav.Link>
+                                )}
+                                {/* NOTIFICATIONS */}
+                                {currentUser && (
+                                    <Dropdown align="end" onToggle={(isOpen) => { if (isOpen) markAllAsRead(); }}>
+                                        <Dropdown.Toggle as="div" className="position-relative text-dark d-flex align-items-center cursor-pointer after-none" id="dropdown-notifications">
+                                            <div className="p-2 rounded-circle bg-light hover-bg-gray transition-all">
+                                                <FaBell size={20} className={unreadCount > 0 ? "text-primary anim-swing" : ""} />
+                                            </div>
+                                            {unreadCount > 0 && (
+                                                <Badge bg="danger" pill className="position-absolute translate-middle border border-light" style={{ top: '10px', left: '80%', fontSize: '0.6rem' }}>
+                                                    {unreadCount}
+                                                </Badge>
                                             )}
-
-                                            <Dropdown.Divider className="my-2 opacity-50" />
-
-                                            <Dropdown.Item onClick={handleLogoutClick} className="rounded-3 py-2 d-flex align-items-center text-danger fw-bold">
-                                                <div className="d-flex align-items-center justify-content-center bg-danger bg-opacity-10 rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
-                                                    <FaSignOutAlt size={14} />
+                                        </Dropdown.Toggle>
+                                        <Dropdown.Menu className="shadow-lg border-0 rounded-4 mt-3 p-0 overflow-hidden" style={{ width: '320px', maxHeight: '400px', overflowY: 'auto' }}>
+                                            <div className="px-3 py-3 bg-white border-bottom d-flex justify-content-between align-items-center sticky-top">
+                                                <span className="fw-bold text-dark">Notifications</span>
+                                                {unreadCount > 0 && <span className="badge bg-primary rounded-pill">{unreadCount} New</span>}
+                                            </div>
+                                            {notifications.length === 0 ? (
+                                                <div className="p-5 text-center text-muted">
+                                                    <FaBell size={24} className="mb-2 opacity-50" />
+                                                    <p className="small mb-0">No notifications yet</p>
                                                 </div>
-                                                Logout
-                                            </Dropdown.Item>
+                                            ) : (
+                                                notifications.map(n => (
+                                                    <Dropdown.Item key={n.id} className={`p-3 border-bottom text-wrap ${!n.is_read ? 'bg-indigo-light' : ''}`} onClick={() => markAsRead(n.id)} style={{ whiteSpace: 'normal', backgroundColor: !n.is_read ? '#f0f4ff' : 'white' }}>
+                                                        <div className="d-flex w-100 justify-content-between mb-1">
+                                                            <strong className="small text-dark">{n.title}</strong>
+                                                            <small className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(n.created_at).toLocaleDateString()}</small>
+                                                        </div>
+                                                        <p className="mb-0 small text-secondary lh-sm">{n.message}</p>
+                                                    </Dropdown.Item>
+                                                ))
+                                            )}
+                                        </Dropdown.Menu>
+                                    </Dropdown>
+                                )}
+
+                                {/* CART (Desktop) */}
+                                <Nav.Link as={Link} to="/cart" className="position-relative text-dark d-flex align-items-center">
+                                    <div className="p-2 rounded-circle bg-light hover-bg-gray transition-all">
+                                        <FaShoppingCart size={20} />
+                                    </div>
+                                    {getCartCount() > 0 && (
+                                        <Badge bg="danger" pill className="position-absolute translate-middle border border-light" style={{ top: '10px', left: '80%', fontSize: '0.7rem' }}>
+                                            {getCartCount()}
+                                        </Badge>
+                                    )}
+                                </Nav.Link>
+
+                                {/* AUTH / PROFILE */}
+                                {currentUser ? (
+                                    <Dropdown align="end">
+                                        <Dropdown.Toggle variant="transparent" className="border-0 p-0 text-dark d-flex align-items-center after-none" id="dropdown-profile">
+                                            {userProfileImage ? (
+                                                <Image src={userProfileImage} roundedCircle width={40} height={40} className="border border-2 border-white shadow-sm object-fit-cover" />
+                                            ) : (
+                                                <div className="p-2 rounded-circle bg-light border">
+                                                    <FaUser size={20} />
+                                                </div>
+                                            )}
+                                        </Dropdown.Toggle>
+
+                                        <Dropdown.Menu className="shadow-lg border-0 rounded-4 mt-3 p-0 overflow-hidden animate-slide-in" style={{ minWidth: '260px' }}>
+                                            <div className="px-4 py-3 bg-light border-bottom">
+                                                <p className="mb-0 fw-bold text-dark text-truncate" style={{ fontSize: '0.95rem' }}>{currentUser.displayName || "User"}</p>
+                                                <p className="mb-0 small text-muted text-truncate">{currentUser.email}</p>
+                                            </div>
+                                            <div className="p-2">
+                                                <Dropdown.Item as={Link} to="/wallet" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
+                                                    <div className="d-flex align-items-center justify-content-center bg-white rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                        <FaWallet size={14} className="text-dark" />
+                                                    </div>
+                                                    My Wallet
+                                                </Dropdown.Item>
+                                                <Dropdown.Item as={Link} to="/orders" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
+                                                    <div className="d-flex align-items-center justify-content-center bg-light rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                        <FaBoxOpen size={14} className="text-dark" />
+                                                    </div>
+                                                    My Orders
+                                                </Dropdown.Item>
+                                                <Dropdown.Item as={Link} to="/profile" className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
+                                                    <div className="d-flex align-items-center justify-content-center bg-light rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                        <FaUserCog size={14} className="text-dark" />
+                                                    </div>
+                                                    Profile & Settings
+                                                </Dropdown.Item>
+                                                {currentUser.role === 'seller' && currentUser.dbId ? (
+                                                    <Dropdown.Item as={Link} to={`/store/${currentUser.dbId}`} className="rounded-3 py-2 mb-1 d-flex align-items-center text-secondary">
+                                                        <div className="d-flex align-items-center justify-content-center bg-light bg-opacity-25 rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                            <FaStore size={14} className="text-dark" />
+                                                        </div>
+                                                        Seller Centre
+                                                    </Dropdown.Item>
+                                                ) : (
+                                                    <Dropdown.Item as={Link} to="/seller-register" className="rounded-3 py-2 mb-1 d-flex align-items-center text-primary">
+                                                        <div className="d-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                            <FaStore size={14} />
+                                                        </div>
+                                                        Become a Seller
+                                                    </Dropdown.Item>
+                                                )}
+                                                <Dropdown.Divider className="my-2 opacity-50" />
+                                                <Dropdown.Item onClick={handleLogoutClick} className="rounded-3 py-2 d-flex align-items-center text-danger fw-bold">
+                                                    <div className="d-flex align-items-center justify-content-center bg-danger bg-opacity-10 rounded-circle me-3" style={{ width: '28px', height: '28px' }}>
+                                                        <FaSignOutAlt size={14} />
+                                                    </div>
+                                                    Logout
+                                                </Dropdown.Item>
+                                            </div>
+                                        </Dropdown.Menu>
+                                    </Dropdown>
+                                ) : (
+                                    <div className="d-flex gap-2">
+                                        <Link to="/login">
+                                            <Button variant="outline-dark" className="rounded-pill px-4 fw-bold">Login</Button>
+                                        </Link>
+                                    </div>
+                                )}
+                            </Nav>
+                        </Navbar.Collapse>
+                    </div>
+
+                    {/* MOBILE MENU CONTENT (When Toggle is Clicked - Logic for Mobile Menu Items) */}
+                    <Navbar.Collapse id="navbarMobileScroll" className="d-lg-none mt-3 border-top pt-3 w-100">
+                        <Nav className="d-flex flex-column gap-2">
+
+
+                            {/* Only show menu items that are not already accessible */}
+                            {currentUser ? (
+                                <>
+                                    <Nav.Link as={Link} to="/profile" className="d-flex align-items-center gap-3 p-2 rounded hover-bg-light">
+                                        <Image src={userProfileImage || "https://placehold.co/50x50"} roundedCircle width={30} height={30} />
+                                        <div className="d-flex flex-column">
+                                            <span className="fw-bold text-dark">{currentUser.displayName}</span>
+                                            <small className="text-muted">View Profile</small>
                                         </div>
-                                    </Dropdown.Menu>
-                                </Dropdown>
+                                    </Nav.Link>
+
+                                    {currentUser.role === 'seller' ? (
+                                        <Nav.Link as={Link} to={`/store/${currentUser.dbId}`} className="fw-medium text-dark ps-3 border-start">Seller Centre</Nav.Link>
+                                    ) : (
+                                        <Nav.Link as={Link} to="/seller-register" className="fw-medium text-primary ps-3 border-start">Become a Seller</Nav.Link>
+                                    )}
+                                    <Nav.Link onClick={handleLogoutClick} className="fw-medium text-danger ps-3 border-start">Log Out</Nav.Link>
+                                </>
                             ) : (
-                                <div className="d-flex gap-2">
-                                    <Link to="/login">
-                                        <Button variant="outline-dark" className="rounded-pill px-4 fw-bold">Login</Button>
-                                    </Link>
-                                    <Link to="/login?mode=signup">
-                                        <Button variant="dark" className="rounded-pill px-4 fw-bold shadow-sm">Sign Up</Button>
-                                    </Link>
+                                <div className="d-grid gap-2">
+                                    <Link to="/login" className="btn btn-outline-dark rounded-pill">Login</Link>
+                                    <Link to="/login?mode=signup" className="btn btn-dark rounded-pill">Sign Up</Link>
                                 </div>
                             )}
                         </Nav>

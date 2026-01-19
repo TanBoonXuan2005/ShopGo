@@ -74,7 +74,11 @@ button:focus-visible {
 @media (max-width: 768px) {
   .hero-carousel-item {
     height: 250px !important;
-    /* Mobile Height */
+  }
+
+  .fs-1-mobile {
+    font-size: 1.75rem !important;
+    /* Smaller size for mobile hero text */
   }
 }
 
@@ -85,9 +89,9 @@ button:focus-visible {
   gap: 1rem;
   padding-bottom: 0.5rem;
   -webkit-overflow-scrolling: touch;
-  /* Smooth scroll on iOS */
   scrollbar-width: none;
-  /* Hide scrollbar Firefox */
+  flex-wrap: nowrap;
+  /* Force single row */
 }
 
 .horizontal-scroll::-webkit-scrollbar {

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams, useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ProductCard from "../components/ProductCard";
-import { FaStar, FaShoppingCart } from "react-icons/fa";
+import { FaStar, FaShoppingCart, FaTshirt, FaMobileAlt, FaCouch, FaPumpSoap, FaFootballBall, FaGamepad, FaFilter } from "react-icons/fa";
 import { useCart } from "../components/CartContext";
 
 export default function Home() {
@@ -136,8 +136,22 @@ export default function Home() {
         }
     };
 
+    // Mobile Filter State
+    const [showFilter, setShowFilter] = useState(false);
+
+    // Enhanced Categories with Icons for Mobile
+    const categoryIcons = [
+        { name: 'All', icon: <FaStar size={20} />, link: '/' },
+        { name: 'Fashion', icon: <FaTshirt size={20} />, link: '/c/fashion' },
+        { name: 'Devices', icon: <FaMobileAlt size={20} />, link: '/c/electronics' },
+        { name: 'Home', icon: <FaCouch size={20} />, link: '/c/home' },
+        { name: 'Beauty', icon: <FaPumpSoap size={20} />, link: '/c/beauty' },
+        { name: 'Sports', icon: <FaFootballBall size={20} />, link: '/c/sports' },
+        { name: 'Toys', icon: <FaGamepad size={20} />, link: '/c/toys' },
+    ];
+
     return (
-        <div className="bg-white py-4 position-relative">
+        <div className="bg-white py-3 py-md-4 position-relative">
             {/* SUCCESS TOAST */}
             <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1050 }}>
                 <Toast onClose={() => setShowToast(false)} show={showToast} delay={3000} autohide bg="success">
@@ -153,9 +167,9 @@ export default function Home() {
 
 
             {/* FLUID CONTAINER FOR WIDER LAYOUT */}
-            <Container fluid className="px-5">
+            <Container fluid className="px-3 px-md-5">
                 <Row>
-                    {/* LEFT SIDEBAR - Fixed width for better layout control? Col-2 is roughly sidebar size in fluid */}
+                    {/* LEFT SIDEBAR - Desktop */}
                     <Col md={3} lg={2} className="d-none d-md-block">
                         <Sidebar onFilterChange={handleFilterChange} />
                     </Col>
@@ -234,26 +248,26 @@ export default function Home() {
                         )}
 
 
-                        {/* MOBILE CATEGORY SCROLL (Visible only on mobile/tablet) */}
+                        {/* MOBILE CATEGORY DROPDOWN (Minimised View) */}
                         <div className="d-md-none mb-4">
-                            <div className="horizontal-scroll px-2">
-                                {['All Products', 'Electronics', 'Fashion', 'Home', 'Beauty', 'Sports', 'Toys'].map(cat => (
-                                    <div
-                                        key={cat}
-                                        className={`category-pill cursor-pointer ${category === cat.toLowerCase() || (!category && cat === 'All Products') ? 'active' : ''}`}
-                                        onClick={() => navigate(cat === 'All Products' ? '/' : `/c/${cat.toLowerCase()}`)}
-                                    >
-                                        {cat}
-                                    </div>
+                            <Form.Select
+                                className="form-select-lg fw-bold border-0 shadow-sm bg-light"
+                                onChange={(e) => navigate(e.target.value)}
+                                value={category ? `/c/${category.toLowerCase()}` : '/'}
+                            >
+                                {categoryIcons.map((cat, idx) => (
+                                    <option key={idx} value={cat.link}>
+                                        {cat.name}
+                                    </option>
                                 ))}
-                            </div>
+                            </Form.Select>
                         </div>
 
 
                         {/* 2. RECENTLY VIEWED (If any, and no search/category) */}
                         {!searchQuery && !category && recentProducts.length > 0 && (
                             <div>
-                                <h4 className="fw-bold mb-3">Recently Viewed</h4>
+                                <h4 className="fw-bold mb-3 h5">Recently Viewed</h4>
                                 <Row xs={2} md={2} lg={4} xl={5} className="g-3">
                                     {recentProducts.map((product) => (
                                         <Col key={'recent-' + product.id}>
@@ -271,36 +285,39 @@ export default function Home() {
 
                         {/* 3. PRODUCT GRID */}
                         <div className="mb-5">
-                            <div className="d-flex justify-content-between align-items-end mb-4">
-                                {searchQuery ? (
-                                    <div className="d-flex align-items-center gap-2">
-                                        <h4 className="fw-bold mb-0">Results for "{searchQuery}"</h4>
-                                        <Button variant="link" size="sm" className="text-decoration-none text-muted" onClick={() => navigate("/")}>(Clear)</Button>
-                                    </div>
-                                ) : category ? (
-                                    <h4 className="fw-bold mb-0">Explore {category.charAt(0).toUpperCase() + category.slice(1)}</h4>
-                                ) : (
-                                    <div className="d-flex align-items-center w-100 justify-content-between">
-                                        <h4 className="fw-bold mb-0">All Products</h4>
-                                        <div className="d-flex gap-2">
-                                            {minRating > 0 && <span className="badge bg-warning text-dark align-self-center">Rating: {minRating}+ <span role="button" onClick={() => setMinRating(0)} className="ms-1">&times;</span></span>}
-                                            <Form.Select
-                                                size="sm"
-                                                style={{ width: 'auto', cursor: 'pointer' }}
-                                                className="border-0 bg-transparent fw-bold text-muted"
-                                                onChange={(e) => {
-                                                    const sortVal = e.target.value;
-                                                    // State update logic is handled by setting sortOption
-                                                    setSortOption(sortVal);
-                                                }}
-                                            >
-                                                <option value="relevance">Sort by: Relevancy</option>
-                                                <option value="price-asc">Price: Low to High</option>
-                                                <option value="price-desc">Price: High to Low</option>
-                                            </Form.Select>
+                            <div className="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-2">
+                                <div className="d-flex align-items-center w-100 justify-content-between">
+                                    {searchQuery ? (
+                                        <div className="d-flex align-items-center gap-2">
+                                            <h4 className="fw-bold mb-0 h5">"{searchQuery}"</h4>
+                                            <Button variant="link" size="sm" className="text-decoration-none text-muted p-0" onClick={() => navigate("/")}>(Clear)</Button>
                                         </div>
+                                    ) : category ? (
+                                        <h4 className="fw-bold mb-0 h5">{category.charAt(0).toUpperCase() + category.slice(1)}</h4>
+                                    ) : (
+                                        <h4 className="fw-bold mb-0 h5">All Products</h4>
+                                    )}
+
+                                    {/* Sort & Filter Controls (Mobile Optimized) */}
+                                    <div className="d-flex gap-2 align-items-center">
+                                        {/* Mobile Filter Button */}
+                                        <Button variant="outline-dark" size="sm" className="d-md-none d-flex align-items-center gap-1 rounded-pill px-3" onClick={() => setShowFilter(true)}>
+                                            <FaFilter size={12} /> Filter
+                                        </Button>
+
+                                        <Form.Select
+                                            size="sm"
+                                            style={{ width: 'auto', cursor: 'pointer', maxWidth: '140px' }}
+                                            className="border-0 bg-transparent fw-bold text-muted text-end shadow-none pe-4"
+                                            onChange={(e) => setSortOption(e.target.value)}
+                                        >
+                                            <option value="relevance">Sort: Relevant</option>
+                                            <option value="price-asc">Price: Low to High</option>
+                                            <option value="price-desc">Price: High to Low</option>
+                                        </Form.Select>
                                     </div>
-                                )}
+                                </div>
+                                {minRating > 0 && <div className="w-100"><span className="badge bg-warning text-dark">Rating: {minRating}+ <span role="button" onClick={() => setMinRating(0)} className="ms-1">&times;</span></span></div>}
                             </div>
 
                             {loading && (
@@ -315,22 +332,21 @@ export default function Home() {
                                 <div className="text-center py-5">
                                     {(searchQuery || category || priceFilters.length > 0 || minRating > 0) ? (
                                         <>
-                                            <h4 className="text-muted">No products found matching your filters.</h4>
-                                            <Button variant="outline-dark" onClick={() => {
+                                            <h4 className="text-muted h5">No products found.</h4>
+                                            <Button variant="outline-dark" size="sm" onClick={() => {
                                                 navigate("/");
                                                 setPriceFilters([]);
                                                 setMinRating(0);
-                                            }}>Clear All Filters</Button>
+                                            }}>Clear Filters</Button>
                                         </>
                                     ) : (
                                         <div className="d-flex flex-column align-items-center">
-                                            <h4 className="text-muted mb-3">No products available yet.</h4>
-                                            <p className="text-muted">Check back later for new arrivals!</p>
+                                            <h4 className="text-muted mb-3 h5">No products available.</h4>
                                         </div>
                                     )}
                                 </div>
                             )}
-                            <Row xs={2} md={2} lg={4} xl={5} className="g-4">
+                            <Row xs={2} md={2} lg={4} xl={5} className="g-3 g-md-4">
                                 {filteredProducts.map((product) => (
                                     <Col key={product.id}>
                                         <ProductCard
@@ -345,6 +361,19 @@ export default function Home() {
                     </Col>
                 </Row>
             </Container>
+
+            {/* MOBILE FILTER OFFCANVAS */}
+            <Offcanvas show={showFilter} onHide={() => setShowFilter(false)} placement="start" className="d-md-none" style={{ width: '85%' }}>
+                <Offcanvas.Header closeButton>
+                    <Offcanvas.Title className="fw-bold">Filters</Offcanvas.Title>
+                </Offcanvas.Header>
+                <Offcanvas.Body className="pt-0">
+                    <Sidebar onFilterChange={handleFilterChange} />
+                    <div className="sticky-bottom bg-white pt-3 border-top">
+                        <Button variant="dark" className="w-100 rounded-pill fw-bold" onClick={() => setShowFilter(false)}>Show Results</Button>
+                    </div>
+                </Offcanvas.Body>
+            </Offcanvas>
 
             {/* QUICK ADD OFFCANVAS */}
             <Offcanvas show={showQuickAdd} onHide={() => setShowQuickAdd(false)} placement="bottom" className="rounded-top-4" style={{ height: 'auto', minHeight: '30vh' }}>

@@ -172,7 +172,7 @@ export default function ProductDetails() {
                             </div>
                         </div>
 
-                        <h1 className="fw-bolder mb-2 display-5">{product.name}</h1>
+                        <h1 className="fw-bolder mb-2 fs-2 fs-md-1">{product.name}</h1>
 
                         <div className="mb-4">
                             {product.discount_percentage > 0 ? (
