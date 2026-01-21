@@ -13,7 +13,7 @@ app.use(express.json());
 // Fix for Neon/Postgres connection issues
 let connectionString = DATABASE_URL;
 if (connectionString && connectionString.includes("?")) {
-    connectionString = connectionString.replace("channel_binding=require", "").replace("&&", "&");
+    connectionString = connectionString.replace("channel_binding=require", "").replace("sslmode=require", "").replace("&&", "&");
 }
 
 const pool = new Pool({
@@ -1094,8 +1094,8 @@ app.post("/create-checkout-session", async (req, res) => {
             payment_method_types: req.body.paymentMethodType || ["card"],
             line_items: lineItems,
             mode: "payment",
-            success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/success?order_id=${orderId}`,
-            cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment-cancel?order_id=${orderId}`,
+            success_url: `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')}/success?order_id=${orderId}`,
+            cancel_url: `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '')}/payment-cancel?order_id=${orderId}`,
         };
 
         const { discountAmount } = req.body;

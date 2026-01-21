@@ -138,25 +138,28 @@ export default function Header() {
 
                         {/* MOBILE ACTIONS (Cart + Toggle) */}
                         <div className="d-flex align-items-center gap-1">
-                            <Link to="/sales" className="text-danger p-2 fw-bold text-decoration-none">
+                            {/* SALES (Hidden on Mobile, moved to Menu) */}
+                            <Link to="/sales" className="text-danger p-2 fw-bold text-decoration-none d-none d-sm-block">
                                 <span style={{ fontSize: '1.2rem' }}>🔥</span>
                             </Link>
 
+                            {/* CHAT (Keep on mobile for quick access) */}
                             {currentUser && (
                                 <Link to="/chat" className="text-dark p-2">
                                     <FaCommentDots size={22} />
                                 </Link>
                             )}
 
+                            {/* ORDERS (Hidden on Mobile, moved to Menu) */}
                             {currentUser && (
-                                <Link to="/orders" className="text-dark p-2">
+                                <Link to="/orders" className="text-dark p-2 d-none d-sm-block">
                                     <FaClipboardList size={22} />
                                 </Link>
                             )}
 
-                            {/* NOTIFICATIONS (Mobile) */}
+                            {/* NOTIFICATIONS (Keep on mobile?) Maybe hide. Let's hide on XS. */}
                             {currentUser && (
-                                <Dropdown align="end" onToggle={(isOpen) => { if (isOpen) markAllAsRead(); }}>
+                                <Dropdown align="end" onToggle={(isOpen) => { if (isOpen) markAllAsRead(); }} className="d-none d-sm-block">
                                     <Dropdown.Toggle as="div" className="position-relative text-dark p-2 cursor-pointer after-none">
                                         <FaBell size={22} className={unreadCount > 0 ? "text-primary anim-swing" : ""} />
                                         {unreadCount > 0 && (
@@ -429,6 +432,27 @@ export default function Header() {
                     <div className="d-lg-none w-100">
                         <Navbar.Collapse id="navbarMobileScroll" className="mt-3 border-top pt-3">
                             <Nav className="d-flex flex-column gap-2">
+                                {/* Added Mobile Links for hidden top-bar items */}
+                                <Nav.Link as={Link} to="/sales" className="d-flex align-items-center gap-3 p-2 rounded hover-bg-light text-danger fw-bold border-bottom">
+                                    <span>🔥</span> Sales & Promotions
+                                </Nav.Link>
+
+                                {currentUser && (
+                                    <>
+                                        <Nav.Link as={Link} to="/notifications" className="d-flex align-items-center gap-3 p-2 rounded hover-bg-light border-bottom d-sm-none">
+                                            <div className="position-relative">
+                                                <FaBell size={18} className={unreadCount > 0 ? "text-primary" : ""} />
+                                                {unreadCount > 0 && <Badge bg="danger" pill className="position-absolute top-0 start-100 translate-middle p-1" style={{ fontSize: '0.6rem' }}>{unreadCount}</Badge>}
+                                            </div>
+                                            <span className="fw-bold text-dark">Notifications</span>
+                                        </Nav.Link>
+
+                                        <Nav.Link as={Link} to="/orders" className="d-flex align-items-center gap-3 p-2 rounded hover-bg-light border-bottom d-sm-none">
+                                            <FaClipboardList size={18} />
+                                            <span className="fw-bold text-dark">My Orders</span>
+                                        </Nav.Link>
+                                    </>
+                                )}
 
 
                                 {/* Only show menu items that are not already accessible */}
