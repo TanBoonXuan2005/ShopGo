@@ -113,6 +113,7 @@ export default function AuthPage() {
                     firebase_uid: user.uid,
                     email: user.email,
                     role: "buyer",
+                    profile_image_url: user.photoURL
                 }),
             });
 

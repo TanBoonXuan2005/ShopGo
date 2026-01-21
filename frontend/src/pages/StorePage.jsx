@@ -127,15 +127,13 @@ export default function StorePage() {
                 setProducts(prev => prev.filter(p => p.id !== productToDelete));
                 setShowDeleteModal(false);
                 setProductToDelete(null);
-                // Optional: Show a success toast instead of alert, but alert is fine for success message for now if not requested otherwise
-                // Using existing SuccessModal or a simple alert is okay, but user dislikes alerts for confirmation.
-                // Let's use a non-intrusive way or just close.
             } else {
                 throw new Error("Failed to delete product.");
             }
         } catch (err) {
             console.error(err);
-            alert("Error deleting product."); // Error alert is usually acceptable, or set error state
+            setModalMessage("Error deleting product.");
+            setShowErrorModal(true);
         }
     };
 
@@ -150,6 +148,7 @@ export default function StorePage() {
     // Filter States
     const [priceFilters, setPriceFilters] = useState([]);
     const [minRating, setMinRating] = useState(0);
+    const [selectedCategory, setSelectedCategory] = useState(null); // Added State
 
     // Use loose equality (==) to handle potential string/number mismatches from URL/Auth
     const [showEditModal, setShowEditModal] = useState(false);
@@ -230,6 +229,8 @@ export default function StorePage() {
             });
         } else if (type === 'rating') {
             setMinRating(value);
+        } else if (type === 'category') { // Handled Category Filter
+            setSelectedCategory(value);
         }
     };
 
@@ -237,15 +238,15 @@ export default function StorePage() {
         // 1. Search Term
         const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-        // 2. Price Filter
+        // 2. Category Filter (Store-specific)
+        let matchesCategory = true;
+        if (selectedCategory) {
+            matchesCategory = p.category === selectedCategory;
+        }
+
+        // 3. Price Filter
         let matchesPrice = true;
         if (priceFilters.length > 0) {
-            matchesPrice = priceFilters.some(range => {
-                const price = parseFloat(p.price);
-                return price >= range.min && price < range.max; // Using < max to handle ranges properly (e.g. 0-50, 50-100)
-            });
-            // Handle infinity separately if needed, but 200-Infinity works with < Infinity logic if Infinity is handled, 
-            // but typical logic is often inclusive. Let's adjust slightly for "200 & Above" usually meaning >= 200.
             // Adjust loop:
             matchesPrice = priceFilters.some(range => {
                 const price = parseFloat(p.price);
@@ -254,16 +255,18 @@ export default function StorePage() {
             });
         }
 
-        // 3. Rating Filter
+        // 4. Rating Filter
         let matchesRating = true;
         if (minRating > 0) {
             matchesRating = (parseFloat(p.average_rating) || 0) >= minRating;
         }
 
-        return matchesSearch && matchesPrice && matchesRating;
+        return matchesSearch && matchesCategory && matchesPrice && matchesRating;
     });
 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState("");
 
     const handleUpdateStore = async (e) => {
         e.preventDefault();
@@ -553,7 +556,13 @@ export default function StorePage() {
                         <Row xs={1} md={2} lg={4} className="g-3">
                             {products.slice(0, 4).map(product => (
                                 <Col key={product.id}>
-                                    <ProductCard product={product} navigate={navigate} />
+                                    <ProductCard
+                                        product={product}
+                                        navigate={navigate}
+                                        isOwner={isOwner}
+                                        onEdit={handleEditProduct}
+                                        onDelete={handleDeleteProduct}
+                                    />
                                 </Col>
                             ))}
                         </Row>
@@ -575,6 +584,25 @@ export default function StorePage() {
 
                         {/* PRODUCT GRID */}
                         <Col md={9}>
+                            {(selectedCategory || priceFilters.length > 0 || minRating > 0) && (
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 className="mb-0 fw-bold">{selectedCategory || "Filtered Results"}</h5>
+                                    <Button
+                                        variant="outline-danger"
+                                        size="sm"
+                                        onClick={() => {
+                                            setSearchTerm("");
+                                            setPriceFilters([]);
+                                            setMinRating(0);
+                                            setSelectedCategory(null);
+                                            setSidebarKey(prev => prev + 1);
+                                        }}
+                                    >
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            )}
+
                             <Row xs={1} md={2} lg={3} className="g-3">
                                 {filteredProducts.length > 0 ? (
                                     filteredProducts.map(product => (
@@ -583,8 +611,8 @@ export default function StorePage() {
                                                 product={product}
                                                 navigate={navigate}
                                                 isOwner={isOwner}
-                                                onDelete={handleDeleteProduct}
                                                 onEdit={handleEditProduct}
+                                                onDelete={handleDeleteProduct}
                                             />
                                         </Col>
                                     ))
@@ -595,6 +623,7 @@ export default function StorePage() {
                                             setSearchTerm("");
                                             setPriceFilters([]);
                                             setMinRating(0);
+                                            setSelectedCategory(null); // Reset Category
                                             setSidebarKey(prev => prev + 1); // Reset Sidebar inputs
                                         }}>
                                             Clear Filters
@@ -619,6 +648,19 @@ export default function StorePage() {
                         Awesome
                     </Button>
                 </Modal.Body>
+            </Modal>
+
+            {/* Error Modal */}
+            <Modal show={showErrorModal} onHide={() => setShowErrorModal(false)} centered>
+                <Modal.Header closeButton className="border-0">
+                    <Modal.Title className="fw-bold text-danger">Error</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="pt-0">
+                    <p className="text-muted">{modalMessage}</p>
+                </Modal.Body>
+                <Modal.Footer className="border-0">
+                    <Button variant="secondary" size="sm" onClick={() => setShowErrorModal(false)}>Close</Button>
+                </Modal.Footer>
             </Modal>
 
             {/* Delete Confirmation Modal */}
@@ -879,7 +921,7 @@ export default function StorePage() {
                     </Modal.Footer>
                 </Form>
             </Modal>
-        </div>
+        </div >
     );
 }
 

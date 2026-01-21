@@ -1,7 +1,47 @@
-import { Container, Row, Col } from "react-bootstrap";
+import { Container, Row, Col, Form, Button, InputGroup, Spinner, Modal } from "react-bootstrap";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase";
 
 export default function Footer() {
+    const [email, setEmail] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [subscribed, setSubscribed] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState("");
+
+    const handleSubscribe = async (e) => {
+        e.preventDefault();
+        if (!email) return;
+
+        setLoading(true);
+        try {
+            // 1. Save to Firebase (Keep existing logic)
+            await addDoc(collection(db, "subscribers"), {
+                email: email,
+                subscribed_at: serverTimestamp()
+            });
+
+            // 2. Send Email via Backend
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+            await fetch(`${API_URL}/subscribe`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+
+            setSubscribed(true);
+            setEmail("");
+        } catch (error) {
+            console.error("Error subscribing:", error);
+            setModalMessage("Something went wrong. Please try again.");
+            setShowErrorModal(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <footer className="bg-black text-white pt-5 pb-4 mt-auto">
             <Container>
@@ -37,12 +77,28 @@ export default function Footer() {
                     <Col md={3} className="text-center text-md-start">
                         <h5 className="fw-bold mb-3">Stay Updated</h5>
                         <p className="text-white-50 small mb-3">Subscribe to our newsletter for exclusive deals.</p>
-                        <form onSubmit={(e) => { e.preventDefault(); alert("Thanks for subscribing!"); }}>
-                            <div className="input-group mb-3">
-                                <input type="email" required className="form-control bg-dark text-white border-secondary" placeholder="Email Address" aria-label="Email Address" />
-                                <button className="btn btn-primary" type="submit">Join</button>
+
+                        {subscribed ? (
+                            <div className="alert alert-success py-2 small" role="alert">
+                                Thanks for subscribing!
                             </div>
-                        </form>
+                        ) : (
+                            <Form onSubmit={handleSubscribe}>
+                                <InputGroup className="mb-3">
+                                    <Form.Control
+                                        type="email"
+                                        required
+                                        placeholder="Email Address"
+                                        className="bg-dark text-white border-secondary"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                    />
+                                    <Button variant="primary" type="submit" disabled={loading}>
+                                        {loading ? <Spinner size="sm" animation="border" /> : "Join"}
+                                    </Button>
+                                </InputGroup>
+                            </Form>
+                        )}
                     </Col>
                 </Row>
                 <hr className="my-4 border-secondary" />
@@ -50,6 +106,19 @@ export default function Footer() {
                     <p className="mb-0 text-white-50 small">&copy; {new Date().getFullYear()} ShopGo. All Rights Reserved.</p>
                 </div>
             </Container>
+
+            {/* Error Modal */}
+            <Modal show={showErrorModal} onHide={() => setShowErrorModal(false)} centered>
+                <Modal.Header closeButton className="border-0">
+                    <Modal.Title className="fw-bold text-danger">Error</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="pt-0">
+                    <p className="text-muted">{modalMessage}</p>
+                </Modal.Body>
+                <Modal.Footer className="border-0">
+                    <Button variant="secondary" size="sm" onClick={() => setShowErrorModal(false)}>Close</Button>
+                </Modal.Footer>
+            </Modal>
         </footer>
     );
 }

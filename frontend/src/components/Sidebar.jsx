@@ -13,6 +13,7 @@ export default function Sidebar({ onFilterChange, isStorePage = false, storeCate
         { name: "Electronics", icon: <FaMobileAlt className="me-2" />, link: "/c/electronics" },
         { name: "Laptops", icon: <FaLaptop className="me-2" />, link: "/c/laptops" },
         { name: "Books", icon: <FaBook className="me-2" />, link: "/c/books" },
+        { name: "Accessories", icon: <FaStar className="me-2" />, link: "/c/accessories" },
         { name: "See more", icon: <FaArrowRight className="me-2" />, link: "/categories" },
     ];
 
@@ -51,18 +52,29 @@ export default function Sidebar({ onFilterChange, isStorePage = false, storeCate
                         {isStorePage ? (
                             // STORE CATEGORIES
                             storeCategories.length > 0 ? (
-                                storeCategories.map((cat, index) => (
+                                <>
                                     <ListGroup.Item
-                                        key={index}
                                         action
-                                        onClick={() => handleCategoryClick(cat)}
+                                        onClick={() => handleCategoryClick(null)}
                                         className="border-0 py-2 px-0 text-dark fw-bold d-flex align-items-center sidebar-link"
                                         style={{ cursor: 'pointer' }}
                                     >
                                         <span className="text-secondary me-2"><FaArrowRight size={12} /></span>
-                                        {cat}
+                                        All Products
                                     </ListGroup.Item>
-                                ))
+                                    {storeCategories.map((cat, index) => (
+                                        <ListGroup.Item
+                                            key={index}
+                                            action
+                                            onClick={() => handleCategoryClick(cat)}
+                                            className="border-0 py-2 px-0 text-dark fw-bold d-flex align-items-center sidebar-link"
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            <span className="text-secondary me-2"><FaArrowRight size={12} /></span>
+                                            {cat}
+                                        </ListGroup.Item>
+                                    ))}
+                                </>
                             ) : (
                                 <p className="text-muted small mb-0">No categories found.</p>
                             )

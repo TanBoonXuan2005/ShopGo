@@ -15,6 +15,7 @@ const CATEGORIES = [
     "Sports",
     "Toys",
     "Automotive",
+    "Accessories",
     "Others"
 ];
 
@@ -30,6 +31,7 @@ export default function AddProduct() {
     const [price, setPrice] = useState("");
     const [category, setCategory] = useState("Others");
     const [stock, setStock] = useState(1);
+    const [discount, setDiscount] = useState(""); // Discount state
     const [imageFile, setImageFile] = useState(null); // Store the actual file
     const [preview, setPreview] = useState(null);
     const [error, setError] = useState("");
@@ -50,6 +52,7 @@ export default function AddProduct() {
                         setDescription(data.description || "");
                         setPrice(data.price);
                         setStock(data.stock || 1);
+                        setDiscount(data.discount_percentage || ""); // Load discount
                         setCategory(data.category || "Others");
                         setPreview(data.image_url);
                         // Ensure owner check? Maybe not strictly necessary if backend protects it or we trust UI
@@ -117,7 +120,8 @@ export default function AddProduct() {
                 price: parseFloat(price),
                 image_url: imageUrl,
                 category,
-                stock: parseInt(stock)
+                stock: parseInt(stock),
+                discount_percentage: discount ? parseInt(discount) : 0 // Send discount
             };
 
             if (isEditMode) {
@@ -247,7 +251,21 @@ export default function AddProduct() {
                                                     </InputGroup>
                                                 </Form.Group>
                                             </Col>
-                                            <Col md={6}>
+                                            <Col md={3}>
+                                                <Form.Group className="mb-3">
+                                                    <Form.Label className="fw-bold text-secondary text-uppercase small">Discount (%)</Form.Label>
+                                                    <Form.Control
+                                                        type="number"
+                                                        placeholder="0"
+                                                        value={discount}
+                                                        onChange={(e) => setDiscount(e.target.value)}
+                                                        min="0"
+                                                        max="100"
+                                                        className="py-2 bg-light border-0"
+                                                    />
+                                                </Form.Group>
+                                            </Col>
+                                            <Col md={3}>
                                                 <Form.Group className="mb-3">
                                                     <Form.Label className="fw-bold text-secondary text-uppercase small">Stock *</Form.Label>
                                                     <Form.Control

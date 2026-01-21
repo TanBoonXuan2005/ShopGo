@@ -3,7 +3,7 @@ import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../components/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import { auth, storage } from "../firebase";
-import { updatePassword, reauthenticateWithCredential, EmailAuthProvider, signOut } from "firebase/auth";
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider, signOut, updateProfile } from "firebase/auth";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { FaUser, FaLock, FaSave, FaUserCircle, FaCamera, FaSignOutAlt } from "react-icons/fa";
 
@@ -36,11 +36,13 @@ export default function ProfilePage() {
     useEffect(() => {
         if (currentUser) {
             // Initialize username from context or email
-            setUsername(currentUser.username || currentUser.displayName || "");
+            setUsername(currentUser.displayName || currentUser.username || "");
 
             // Force Firebase to re-fetch latest data (Fix for stale photoURL)
             currentUser.reload().then(() => {
-                setPhoto(auth.currentUser.photoURL);
+                setPhoto(auth.currentUser?.photoURL);
+                // Also update username from reloaded user if needed
+                if (auth.currentUser?.displayName) setUsername(auth.currentUser.displayName);
             }).catch(console.error);
         } else {
             navigate("/login");
@@ -74,13 +76,16 @@ export default function ProfilePage() {
             // await fetch(`${API_URL}/users/${currentUser.uid}`, { ... }) 
 
             // 3. Update Firebase Profile
-            // This updates the displayName and photoURL in Firebase Auth
-            // (Note: To update 'username' specifically, you usually need a custom backend or Firestore)
-            // For now, we assume 'username' maps to 'displayName' in Firebase
-            // import { updateProfile } from "firebase/auth"; 
-            // await updateProfile(currentUser, { displayName: username, photoURL: profileImageUrl });
+            await updateProfile(currentUser, { displayName: username, photoURL: profileImageUrl });
 
-            setPhoto(profileImageUrl);
+            // 4. Force Reload to reflect changes immediately
+            await currentUser.reload();
+            const updatedUser = auth.currentUser;
+
+            // Update Local State
+            setPhoto(updatedUser.photoURL);
+            setUsername(updatedUser.displayName || "");
+
             setProfileMessage({ type: "success", text: "Profile updated successfully!" });
             setNewImage(null);
 

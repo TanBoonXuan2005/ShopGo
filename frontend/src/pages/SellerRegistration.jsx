@@ -1,4 +1,4 @@
-import { Container, Button, Card, Row, Col, Spinner } from "react-bootstrap";
+import { Container, Button, Card, Row, Col, Spinner, Modal } from "react-bootstrap";
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../components/AuthProvider";
 import { useNavigate } from "react-router-dom";
@@ -9,11 +9,14 @@ export default function SellerRegistration() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [storeName, setStoreName] = useState("");
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
 
     // If already a seller, redirect
     useEffect(() => {
         if (currentUser && currentUser.role === 'seller') {
-            navigate('/add');
+            navigate(`/store/${currentUser.uid}`);
         }
     }, [currentUser, navigate]);
 
@@ -24,7 +27,8 @@ export default function SellerRegistration() {
         }
 
         if (!storeName.trim()) {
-            alert("Please enter a store name.");
+            setErrorMessage("Please enter a store name.");
+            setShowErrorModal(true);
             return;
         }
 
@@ -39,16 +43,25 @@ export default function SellerRegistration() {
 
             if (response.ok) {
                 await refreshUser(); // Update context
-                alert("Congratulations! You are now a Seller.");
-                navigate('/add');
+                setShowSuccessModal(true);
             } else {
                 throw new Error("Registration failed");
             }
         } catch (err) {
             console.error(err);
-            alert("Something went wrong. Please try again.");
+            setErrorMessage("Something went wrong. Please try again.");
+            setShowErrorModal(true);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSuccessClose = () => {
+        setShowSuccessModal(false);
+        if (currentUser) {
+            navigate(`/store/${currentUser.uid}`);
+        } else {
+            navigate('/');
         }
     };
 
@@ -126,6 +139,33 @@ export default function SellerRegistration() {
                     </Card>
                 </Col>
             </Row>
+
+            {/* Success Modal */}
+            <Modal show={showSuccessModal} onHide={handleSuccessClose} centered>
+                <Modal.Body className="text-center py-5">
+                    <div className="mb-3 text-success">
+                        <FaStore size={50} />
+                    </div>
+                    <h4 className="fw-bold">Congratulations!</h4>
+                    <p className="text-muted">You are now a registered Seller.</p>
+                    <Button variant="dark" onClick={handleSuccessClose} className="px-4 mt-2">
+                        Start Selling
+                    </Button>
+                </Modal.Body>
+            </Modal>
+
+            {/* Error Modal */}
+            <Modal show={showErrorModal} onHide={() => setShowErrorModal(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title className="fw-bold text-danger">Error</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="text-center py-4">
+                    <p className="text-muted mb-0">{errorMessage}</p>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowErrorModal(false)}>Close</Button>
+                </Modal.Footer>
+            </Modal>
         </Container >
     );
 }

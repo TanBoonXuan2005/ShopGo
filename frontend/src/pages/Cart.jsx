@@ -14,6 +14,8 @@ export default function Cart() {
     const [vouchers, setVouchers] = useState([]);
     const [selectedVoucher, setSelectedVoucher] = useState(null);
     const [showVoucherModal, setShowVoucherModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState("");
 
     // Fetch Vouchers
     useEffect(() => {
@@ -44,7 +46,8 @@ export default function Cart() {
                 const res2 = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/vouchers?firebase_uid=${currentUser.uid}`);
                 if (res2.ok) setVouchers(await res2.json());
             } else {
-                alert("Could not claim voucher");
+                setModalMessage("Could not claim voucher");
+                setShowErrorModal(true);
             }
         } catch (err) {
             console.error(err);
@@ -248,6 +251,19 @@ export default function Cart() {
                     )}
                 </Modal.Body>
             </Modal>
-        </Container>
+
+            {/* Error Modal */}
+            <Modal show={showErrorModal} onHide={() => setShowErrorModal(false)} centered>
+                <Modal.Header closeButton className="border-0">
+                    <Modal.Title className="fw-bold text-danger">Error</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="pt-0">
+                    <p className="text-muted">{modalMessage}</p>
+                </Modal.Body>
+                <Modal.Footer className="border-0">
+                    <Button variant="secondary" size="sm" onClick={() => setShowErrorModal(false)}>Close</Button>
+                </Modal.Footer>
+            </Modal>
+        </Container >
     );
 }

@@ -19,6 +19,9 @@ export default function Orders() {
     // Modal State
     const [showModal, setShowModal] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState(null);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState("");
 
     // Redirect if not logged in
     useEffect(() => {
@@ -112,7 +115,8 @@ export default function Orders() {
             } else {
                 const data = await res.json();
                 console.error(data.error || "Failed to cancel order");
-                alert(data.error || "Failed to cancel order"); // Fallback or use a toast if available
+                setModalMessage(data.error || "Failed to cancel order");
+                setShowErrorModal(true);
             }
         } catch (err) {
             console.error("Error cancelling order:", err);
@@ -132,7 +136,11 @@ export default function Orders() {
 
     const handleSubmitItemReview = async (productId) => {
         const data = reviewData[productId];
-        if (!data || !data.comment) return alert("Please write a comment.");
+        if (!data || !data.comment) {
+            setModalMessage("Please write a comment.");
+            setShowErrorModal(true);
+            return;
+        }
 
         setLoadingReviews(prev => ({ ...prev, [productId]: true }));
         try {
@@ -149,15 +157,18 @@ export default function Orders() {
             });
 
             if (res.ok) {
-                alert("Review submitted!");
+                setModalMessage("Review submitted!");
+                setShowSuccessModal(true);
                 // Optionally remove this item from the list or clear the form
                 setReviewData(prev => ({ ...prev, [productId]: { rating: 5, comment: "" } }));
             } else {
-                alert("Failed to submit review.");
+                setModalMessage("Failed to submit review.");
+                setShowErrorModal(true);
             }
         } catch (err) {
             console.error("Review Error:", err);
-            alert("Error submitting review.");
+            setModalMessage("Error submitting review.");
+            setShowErrorModal(true);
         } finally {
             setLoadingReviews(prev => ({ ...prev, [productId]: false }));
         }
@@ -477,7 +488,32 @@ export default function Orders() {
                     </div>
                 </Modal.Body>
             </Modal>
-        </Container>
+
+            {/* Success Modal */}
+            <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered>
+                <Modal.Body className="text-center py-4">
+                    <div className="mb-2 text-success">
+                        <i className="bi bi-check-circle-fill d-block" style={{ fontSize: '2rem' }}></i>
+                    </div>
+                    <h5 className="fw-bold">Success</h5>
+                    <p className="text-muted mb-3">{modalMessage}</p>
+                    <Button variant="dark" size="sm" onClick={() => setShowSuccessModal(false)}>Close</Button>
+                </Modal.Body>
+            </Modal>
+
+            {/* Error Modal */}
+            <Modal show={showErrorModal} onHide={() => setShowErrorModal(false)} centered>
+                <Modal.Header closeButton className="border-0">
+                    <Modal.Title className="fw-bold text-danger">Error</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="pt-0">
+                    <p className="text-muted">{modalMessage}</p>
+                </Modal.Body>
+                <Modal.Footer className="border-0">
+                    <Button variant="secondary" size="sm" onClick={() => setShowErrorModal(false)}>Close</Button>
+                </Modal.Footer>
+            </Modal>
+        </Container >
     );
 
 

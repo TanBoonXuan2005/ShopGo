@@ -20,6 +20,11 @@ export default function ProductCard({ product, navigate, isOwner, onEdit, onDele
                         <Badge bg="dark">Out of Stock</Badge>
                     </div>
                 )}
+                {product.stock > 0 && product.stock < 3 && (
+                    <div className="position-absolute top-0 end-0 p-2">
+                        <Badge bg="danger" className="shadow-sm">Only {product.stock} left!</Badge>
+                    </div>
+                )}
             </div>
 
             <Card.Body className="d-flex flex-column p-3">
@@ -55,7 +60,7 @@ export default function ProductCard({ product, navigate, isOwner, onEdit, onDele
                             <Button variant="light" size="sm" className="rounded-circle p-2 d-flex align-items-center justify-content-center" onClick={() => onEdit(product)}>
                                 <FaEdit size={14} className="text-primary" />
                             </Button>
-                            <Button variant="light" size="sm" className="rounded-circle p-2 d-flex align-items-center justify-content-center" onClick={() => onDelete(product)}>
+                            <Button variant="light" size="sm" className="rounded-circle p-2 d-flex align-items-center justify-content-center" onClick={() => onDelete(product.id)}>
                                 <FaTrash size={14} className="text-danger" />
                             </Button>
                         </div>

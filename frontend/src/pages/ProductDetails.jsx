@@ -1,10 +1,12 @@
-import { Container, Row, Col, Card, Button, Spinner, Alert, Badge, Toast, ToastContainer } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Spinner, Alert, Badge, Toast, ToastContainer, Modal } from "react-bootstrap";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useContext } from "react";
 import { FaShoppingCart, FaStar, FaShieldAlt, FaShippingFast, FaStore } from "react-icons/fa";
 import { useCart } from "../components/CartContext";
 import { AuthContext } from "../components/AuthProvider";
 import { Form } from "react-bootstrap";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase";
 
 export default function ProductDetails() {
     const { id } = useParams();
@@ -26,6 +28,11 @@ export default function ProductDetails() {
     const [userRating, setUserRating] = useState(5);
     const [userComment, setUserComment] = useState("");
     const [submittingReview, setSubmittingReview] = useState(false);
+
+    // Modal State
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [modalMessage, setModalMessage] = useState("");
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -116,14 +123,58 @@ export default function ProductDetails() {
                 // Optimistically update UI
                 setReviews([newReview, ...reviews]);
                 setUserComment("");
-                alert("Review submitted!");
+                setModalMessage("Review submitted successfully!");
+                setShowSuccessModal(true);
             } else {
-                alert("Failed to submit review.");
+                setModalMessage("Failed to submit review.");
+                setShowErrorModal(true);
             }
         } catch (err) {
             console.error(err);
         } finally {
             setSubmittingReview(false);
+        }
+    };
+
+    const handleChat = async () => {
+        if (!currentUser) {
+            navigate("/login");
+            return;
+        }
+
+        if (!product.seller_firebase_uid) {
+            // Fallback: If backend hasn't updated yet or old seller
+            setModalMessage("This seller is not available for chat.");
+            setShowErrorModal(true);
+            return;
+        }
+
+        const participants = [currentUser.uid, product.seller_firebase_uid].sort();
+        const chatId = participants.join("_");
+
+        try {
+            const chatRef = doc(db, "chats", chatId);
+
+            // Create or update the chat safely. 
+            // setDoc with merge: true passes 'create' rule if new, 'update' rule if exists.
+            await setDoc(chatRef, {
+                participants: participants,
+                updatedAt: serverTimestamp(),
+                // Only set lastMessage if it doesn't exist (to avoid overwriting valid history)
+                // Actually, for just opening the chat, we don't need to overwrite lastMessage if it exists.
+                // But Firestore setDoc merge doesn't have "set if missing" for fields easily without knowing.
+                // However, our chat creation only really cares about participants existing.
+                // Better approach: Just ensure the doc exists with participants.
+            }, { merge: true });
+
+            // Note: If we want to strictly init lastMessage only on creation, 
+            // we might need a separate check or just accept that 'Chat Now' might not reset lastMessage (good).
+
+            navigate(`/chat/${chatId}`);
+        } catch (err) {
+            console.error("Chat Error:", err);
+            setModalMessage("Could not start chat.");
+            setShowErrorModal(true);
         }
     };
 
@@ -133,8 +184,8 @@ export default function ProductDetails() {
 
     return (
         <Container className="py-3 py-md-5 position-relative product-details-container" style={{ minHeight: "80vh" }}>
-            {/* SUCCESS TOAST */}
-            <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1050 }}>
+            {/* SUCCESS TOAST - Fixed position to be visible even when scrolled */}
+            <ToastContainer position="top-end" className="p-3 position-fixed" style={{ zIndex: 9999, top: '80px', right: '10px' }}>
                 <Toast onClose={() => setShowToast(false)} show={showToast} delay={3000} autohide bg="success">
                     <Toast.Header>
                         <strong className="me-auto text-success">Added to Cart</strong>
@@ -203,6 +254,7 @@ export default function ProductDetails() {
                                     className="rounded-circle p-0 d-flex align-items-center justify-content-center"
                                     style={{ width: '40px', height: '40px' }}
                                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                    disabled={product.stock <= 0}
                                 >
                                     -
                                 </Button>
@@ -211,10 +263,14 @@ export default function ProductDetails() {
                                     variant="outline-dark"
                                     className="rounded-circle p-0 d-flex align-items-center justify-content-center"
                                     style={{ width: '40px', height: '40px' }}
-                                    onClick={() => setQuantity(quantity + 1)}
+                                    onClick={() => setQuantity(Math.min(product.stock || 99, quantity + 1))}
+                                    disabled={product.stock <= 0 || quantity >= product.stock}
                                 >
                                     +
                                 </Button>
+                                <span className="text-muted ms-2 small">
+                                    {product.stock > 0 ? `${product.stock} stocks available` : <span className="text-danger fw-bold">Out of Stock</span>}
+                                </span>
                             </div>
 
                             <div className="d-grid gap-2 mb-4">
@@ -223,8 +279,8 @@ export default function ProductDetails() {
                                         <FaStore className="me-2" /> You own this product
                                     </Button>
                                 ) : (
-                                    <Button variant="dark" size="lg" className="rounded-pill py-3 fw-bold" onClick={handleAddToCart}>
-                                        <FaShoppingCart className="me-2" /> Add to Cart
+                                    <Button variant="dark" size="lg" className="rounded-pill py-3 fw-bold" onClick={handleAddToCart} disabled={product.stock <= 0}>
+                                        {product.stock > 0 ? <><FaShoppingCart className="me-2" /> Add to Cart</> : "Out of Stock"}
                                     </Button>
                                 )}
                             </div>
@@ -295,7 +351,7 @@ export default function ProductDetails() {
                                             <Button variant="outline-dark" size="sm" onClick={() => navigate(`/store/${product.seller_id}`)}>
                                                 <FaStore className="me-2" /> View Shop
                                             </Button>
-                                            <Button variant="dark" size="sm" onClick={() => alert("Chat feature coming soon!")}>
+                                            <Button variant="dark" size="sm" onClick={handleChat}>
                                                 Chat Now
                                             </Button>
                                         </div>
@@ -426,6 +482,30 @@ export default function ProductDetails() {
                     </div>
                 )
             }
+            {/* Success Modal */}
+            <Modal show={showSuccessModal} onHide={() => setShowSuccessModal(false)} centered>
+                <Modal.Body className="text-center py-4">
+                    <div className="mb-2 text-success">
+                        <i className="bi bi-check-circle-fill d-block" style={{ fontSize: '2rem' }}></i>
+                    </div>
+                    <h5 className="fw-bold">Success</h5>
+                    <p className="text-muted mb-3">{modalMessage}</p>
+                    <Button variant="dark" size="sm" onClick={() => setShowSuccessModal(false)}>Close</Button>
+                </Modal.Body>
+            </Modal>
+
+            {/* Error Modal */}
+            <Modal show={showErrorModal} onHide={() => setShowErrorModal(false)} centered>
+                <Modal.Header closeButton className="border-0">
+                    <Modal.Title className="fw-bold text-danger">Error</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="pt-0">
+                    <p className="text-muted">{modalMessage}</p>
+                </Modal.Body>
+                <Modal.Footer className="border-0">
+                    <Button variant="secondary" size="sm" onClick={() => setShowErrorModal(false)}>Close</Button>
+                </Modal.Footer>
+            </Modal>
         </Container >
     )
 

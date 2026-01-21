@@ -1,6 +1,6 @@
 import { Container, Navbar, Nav, Button, InputGroup, Form, Badge, Dropdown, Image, Modal } from "react-bootstrap";
 import { Link, useNavigate, Outlet, useLocation } from "react-router-dom";
-import { FaShoppingCart, FaSearch, FaUser, FaClipboardList, FaWallet, FaUserCog, FaStore, FaSignOutAlt, FaBoxOpen, FaBell } from 'react-icons/fa';
+import { FaShoppingCart, FaSearch, FaUser, FaClipboardList, FaWallet, FaUserCog, FaStore, FaSignOutAlt, FaBoxOpen, FaBell, FaCommentDots } from 'react-icons/fa';
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "./AuthProvider";
 import { useCart } from "./CartContext"; // Use custom hook
@@ -141,16 +141,55 @@ export default function Header() {
                             <Link to="/sales" className="text-danger p-2 fw-bold text-decoration-none">
                                 <span style={{ fontSize: '1.2rem' }}>🔥</span>
                             </Link>
+
                             {currentUser && (
-                                <>
-                                    <Link to="/orders" className="text-dark p-2">
-                                        <FaClipboardList size={22} />
-                                    </Link>
-                                    <Link to="/profile" className="text-dark p-2">
-                                        <FaUser size={20} />
-                                    </Link>
-                                </>
+                                <Link to="/chat" className="text-dark p-2">
+                                    <FaCommentDots size={22} />
+                                </Link>
                             )}
+
+                            {currentUser && (
+                                <Link to="/orders" className="text-dark p-2">
+                                    <FaClipboardList size={22} />
+                                </Link>
+                            )}
+
+                            {/* NOTIFICATIONS (Mobile) */}
+                            {currentUser && (
+                                <Dropdown align="end" onToggle={(isOpen) => { if (isOpen) markAllAsRead(); }}>
+                                    <Dropdown.Toggle as="div" className="position-relative text-dark p-2 cursor-pointer after-none">
+                                        <FaBell size={22} className={unreadCount > 0 ? "text-primary anim-swing" : ""} />
+                                        {unreadCount > 0 && (
+                                            <Badge bg="danger" pill className="position-absolute translate-middle border border-light" style={{ top: '8px', left: '85%', fontSize: '0.65rem' }}>
+                                                {unreadCount}
+                                            </Badge>
+                                        )}
+                                    </Dropdown.Toggle>
+                                    <Dropdown.Menu className="shadow-lg border-0 rounded-4 mt-3 p-0 overflow-hidden" style={{ width: '300px', maxHeight: '400px', overflowY: 'auto', position: 'absolute', right: '-50px' }}>
+                                        <div className="px-3 py-3 bg-white border-bottom d-flex justify-content-between align-items-center sticky-top">
+                                            <span className="fw-bold text-dark">Notifications</span>
+                                            {unreadCount > 0 && <span className="badge bg-primary rounded-pill">{unreadCount} New</span>}
+                                        </div>
+                                        {notifications.length === 0 ? (
+                                            <div className="p-5 text-center text-muted">
+                                                <FaBell size={24} className="mb-2 opacity-50" />
+                                                <p className="small mb-0">No notifications yet</p>
+                                            </div>
+                                        ) : (
+                                            notifications.map(n => (
+                                                <Dropdown.Item key={n.id} className={`p-3 border-bottom text-wrap ${!n.is_read ? 'bg-indigo-light' : ''}`} onClick={() => markAsRead(n.id)} style={{ whiteSpace: 'normal', backgroundColor: !n.is_read ? '#f0f4ff' : 'white' }}>
+                                                    <div className="d-flex w-100 justify-content-between mb-1">
+                                                        <strong className="small text-dark">{n.title}</strong>
+                                                        <small className="text-muted" style={{ fontSize: '0.7rem' }}>{new Date(n.created_at).toLocaleDateString()}</small>
+                                                    </div>
+                                                    <p className="mb-0 small text-secondary lh-sm">{n.message}</p>
+                                                </Dropdown.Item>
+                                            ))
+                                        )}
+                                    </Dropdown.Menu>
+                                </Dropdown>
+                            )}
+
                             <Link to="/cart" className="position-relative text-dark p-2">
                                 <FaShoppingCart size={22} />
                                 {getCartCount() > 0 && (
@@ -159,6 +198,13 @@ export default function Header() {
                                     </Badge>
                                 )}
                             </Link>
+
+                            {currentUser && (
+                                <Link to="/profile" className="text-dark p-2">
+                                    <FaUser size={20} />
+                                </Link>
+                            )}
+
                             <Navbar.Toggle aria-controls="navbarMobileScroll" className="border-0 p-1" />
                         </div>
                     </div>
@@ -238,6 +284,15 @@ export default function Header() {
                                 <Nav.Link as={Link} to="/sales" className="text-danger fw-bold d-flex align-items-center gap-1 hover-scale">
                                     <span className="">🔥 Sale</span>
                                 </Nav.Link>
+
+                                {/* MESSAGES */}
+                                {currentUser && (
+                                    <Nav.Link as={Link} to="/chat" className="text-dark d-flex align-items-center">
+                                        <div className="p-2 rounded-circle bg-light hover-bg-gray transition-all">
+                                            <FaCommentDots size={20} />
+                                        </div>
+                                    </Nav.Link>
+                                )}
 
                                 {/* ORDERS */}
                                 {currentUser && (
@@ -371,36 +426,38 @@ export default function Header() {
                     </div>
 
                     {/* MOBILE MENU CONTENT (When Toggle is Clicked - Logic for Mobile Menu Items) */}
-                    <Navbar.Collapse id="navbarMobileScroll" className="d-lg-none mt-3 border-top pt-3 w-100">
-                        <Nav className="d-flex flex-column gap-2">
+                    <div className="d-lg-none w-100">
+                        <Navbar.Collapse id="navbarMobileScroll" className="mt-3 border-top pt-3">
+                            <Nav className="d-flex flex-column gap-2">
 
 
-                            {/* Only show menu items that are not already accessible */}
-                            {currentUser ? (
-                                <>
-                                    <Nav.Link as={Link} to="/profile" className="d-flex align-items-center gap-3 p-2 rounded hover-bg-light">
-                                        <Image src={userProfileImage || "https://placehold.co/50x50"} roundedCircle width={30} height={30} />
-                                        <div className="d-flex flex-column">
-                                            <span className="fw-bold text-dark">{currentUser.displayName}</span>
-                                            <small className="text-muted">View Profile</small>
-                                        </div>
-                                    </Nav.Link>
+                                {/* Only show menu items that are not already accessible */}
+                                {currentUser ? (
+                                    <>
+                                        <Nav.Link as={Link} to="/profile" className="d-flex align-items-center gap-3 p-2 rounded hover-bg-light">
+                                            <Image src={userProfileImage || "https://placehold.co/50x50"} roundedCircle width={30} height={30} />
+                                            <div className="d-flex flex-column">
+                                                <span className="fw-bold text-dark">{currentUser.displayName}</span>
+                                                <small className="text-muted">View Profile</small>
+                                            </div>
+                                        </Nav.Link>
 
-                                    {currentUser.role === 'seller' ? (
-                                        <Nav.Link as={Link} to={`/store/${currentUser.dbId}`} className="fw-medium text-dark ps-3 border-start">Seller Centre</Nav.Link>
-                                    ) : (
-                                        <Nav.Link as={Link} to="/seller-register" className="fw-medium text-primary ps-3 border-start">Become a Seller</Nav.Link>
-                                    )}
-                                    <Nav.Link onClick={handleLogoutClick} className="fw-medium text-danger ps-3 border-start">Log Out</Nav.Link>
-                                </>
-                            ) : (
-                                <div className="d-grid gap-2">
-                                    <Link to="/login" className="btn btn-outline-dark rounded-pill">Login</Link>
-                                    <Link to="/login?mode=signup" className="btn btn-dark rounded-pill">Sign Up</Link>
-                                </div>
-                            )}
-                        </Nav>
-                    </Navbar.Collapse>
+                                        {currentUser.role === 'seller' ? (
+                                            <Nav.Link as={Link} to={`/store/${currentUser.dbId}`} className="fw-medium text-dark ps-3 border-start">Seller Centre</Nav.Link>
+                                        ) : (
+                                            <Nav.Link as={Link} to="/seller-register" className="fw-medium text-primary ps-3 border-start">Become a Seller</Nav.Link>
+                                        )}
+                                        <Nav.Link onClick={handleLogoutClick} className="fw-medium text-danger ps-3 border-start">Log Out</Nav.Link>
+                                    </>
+                                ) : (
+                                    <div className="d-grid gap-2">
+                                        <Link to="/login" className="btn btn-outline-dark rounded-pill">Login</Link>
+                                        <Link to="/login?mode=signup" className="btn btn-dark rounded-pill">Sign Up</Link>
+                                    </div>
+                                )}
+                            </Nav>
+                        </Navbar.Collapse>
+                    </div>
                 </Container>
             </Navbar>
 

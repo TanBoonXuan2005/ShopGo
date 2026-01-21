@@ -17,6 +17,7 @@ import Orders from "./pages/Orders";
 import Success from "./pages/Success";
 import StorePage from "./pages/StorePage";
 import PaymentCancel from "./pages/PaymentCancel";
+import ChatPage from "./pages/ChatPage";
 
 const router = createBrowserRouter([
     {
@@ -26,6 +27,14 @@ const router = createBrowserRouter([
             {
                 index: true,
                 element: <Home />
+            },
+            {
+                path: "/chat",
+                element: <ChatPage />
+            },
+            {
+                path: "/chat/:chatId",
+                element: <ChatPage />
             },
             {
                 path: '/profile',

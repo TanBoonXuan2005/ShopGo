@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams, useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ProductCard from "../components/ProductCard";
-import { FaStar, FaShoppingCart, FaTshirt, FaMobileAlt, FaCouch, FaPumpSoap, FaFootballBall, FaGamepad, FaFilter } from "react-icons/fa";
+import { FaStar, FaShoppingCart, FaTshirt, FaMobileAlt, FaCouch, FaPumpSoap, FaFootballBall, FaGamepad, FaFilter, FaLaptop } from "react-icons/fa";
 import { useCart } from "../components/CartContext";
 
 export default function Home() {
@@ -42,7 +42,8 @@ export default function Home() {
                     if (recentIds.length > 0) {
                         const viewed = recentIds
                             .map(id => data.find(p => p.id === id))
-                            .filter(p => p !== undefined);
+                            .filter(p => p !== undefined)
+                            .slice(0, 4);
                         setRecentProducts(viewed);
                     }
 
@@ -143,9 +144,11 @@ export default function Home() {
     const categoryIcons = [
         { name: 'All', icon: <FaStar size={20} />, link: '/' },
         { name: 'Fashion', icon: <FaTshirt size={20} />, link: '/c/fashion' },
+        { name: 'Laptops', icon: <FaLaptop size={20} />, link: '/c/laptops' },
         { name: 'Devices', icon: <FaMobileAlt size={20} />, link: '/c/electronics' },
         { name: 'Home', icon: <FaCouch size={20} />, link: '/c/home' },
         { name: 'Beauty', icon: <FaPumpSoap size={20} />, link: '/c/beauty' },
+        { name: 'Accessories', icon: <FaStar size={20} />, link: '/c/accessories' }, // Added Accessories
         { name: 'Sports', icon: <FaFootballBall size={20} />, link: '/c/sports' },
         { name: 'Toys', icon: <FaGamepad size={20} />, link: '/c/toys' },
     ];
@@ -153,7 +156,7 @@ export default function Home() {
     return (
         <div className="bg-white py-3 py-md-4 position-relative">
             {/* SUCCESS TOAST */}
-            <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1050 }}>
+            <ToastContainer position="top-end" className="p-3 position-fixed" style={{ zIndex: 9999, top: '80px', right: '10px' }}>
                 <Toast onClose={() => setShowToast(false)} show={showToast} delay={3000} autohide bg="success">
                     <Toast.Header>
                         <strong className="me-auto text-success">Added to Cart</strong>
