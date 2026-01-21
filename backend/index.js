@@ -2,251 +2,52 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
-const { DATABASE_URL } = process.env;
+const { DATABASE_URL, EMAIL_USER, EMAIL_PASS } = process.env;
+const nodemailer = require("nodemailer");
+const { getWelcomeEmailHtml } = require("./emailTemplates");
 
 let app = express();
 app.use(cors());
 app.use(express.json());
 
+// Fix for Neon/Postgres connection issues
+let connectionString = DATABASE_URL;
+if (connectionString && connectionString.includes("?")) {
+    connectionString = connectionString.replace("channel_binding=require", "").replace("&&", "&");
+}
+
 const pool = new Pool({
-    connectionString: DATABASE_URL,
+    connectionString: connectionString,
     ssl: {
         rejectUnauthorized: false,
     },
 });
-
-// --- DATABASE INITIALIZATION & MIGRATIONS ---
-// --- DATABASE INITIALIZATION & MIGRATIONS ---
-async function initDatabase() {
-    const client = await pool.connect();
-    try {
-        console.log("Checking database schema...");
-
-        // 1. Users Table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                firebase_uid VARCHAR(255) UNIQUE NOT NULL,
-                email VARCHAR(255) NOT NULL,
-                username VARCHAR(50), -- New field
-                role VARCHAR(50) DEFAULT 'buyer',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        // Migration: Ensure username exists
-        try {
-            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(50);`);
-        } catch (err) { console.log("Migration note (username):", err.message); }
-
-        // 2. Products Table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS products (
-                id SERIAL PRIMARY KEY,
-                seller_id INT REFERENCES users(id),
-                name VARCHAR(255) NOT NULL,
-                description TEXT,
-                price DECIMAL(10, 2) NOT NULL,
-                image_url TEXT,
-                category VARCHAR(100),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        // Migration: Ensure category exists
-        try {
-            await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS category VARCHAR(100);`);
-        } catch (err) { console.log("Migration note:", err.message); }
-
-        // Migration: Ensure stock exists
-        try {
-            await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock INT DEFAULT 0;`);
-        } catch (err) { console.log("Migration note (stock):", err.message); }
-
-        // Migration: Ensure seller_id exists
-        try {
-            await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS seller_id INT REFERENCES users(id);`);
-        } catch (err) { console.log("Migration note (seller_id):", err.message); }
-
-        // Migration: Fix seller_id type (Convert VARCHAR to INT if needed)
-        try {
-            await client.query(`
-               ALTER TABLE products 
-               ALTER COLUMN seller_id TYPE INTEGER 
-               USING seller_id::integer;
-           `);
-            console.log("Migration: Converted seller_id to INTEGER");
-        } catch (err) {
-            console.log("Migration note (seller_id conversion):", err.message);
-        }
-
-        // Migration: Ensure store_name exists for users
-        try {
-            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS store_name VARCHAR(255);`);
-        } catch (err) { console.log("Migration note (store_name):", err.message); }
-
-        // Migration: Ensure store_image_url exists
-        try {
-            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS store_image_url TEXT;`);
-        } catch (err) { console.log("Migration note (store_image_url):", err.message); }
-
-        // Migration: Ensure store_banner_url exists
-        try {
-            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS store_banner_url TEXT;`);
-        } catch (err) { console.log("Migration note (store_banner_url):", err.message); }
-
-        try {
-            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS store_background_url TEXT;`);
-        } catch (err) { console.log("Migration note (store_background_url):", err.message); }
-
-        // Migration: Ensure discount_percentage exists
-        try {
-            await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_percentage INT DEFAULT 0;`);
-        } catch (err) { console.log("Migration note (discount_percentage):", err.message); }
-
-        // Migration: Ensure profile_image_url exists (User Avatar)
-        try {
-            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url TEXT;`);
-        } catch (err) { console.log("Migration note (profile_image_url):", err.message); }
-
-        // Migration: Ensure wallet_balance exists
-        try {
-            await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance DECIMAL(10, 2) DEFAULT 0.00;`);
-        } catch (err) { console.log("Migration note (wallet_balance):", err.message); }
-
-        // 3. Orders Table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS orders (
-                id SERIAL PRIMARY KEY,
-                user_id INT REFERENCES users(id),
-                firebase_uid VARCHAR(255),
-                total_amount DECIMAL(10, 2) NOT NULL,
-                status VARCHAR(50) DEFAULT 'pending',
-                shipping_address JSONB,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        // 4. Order Items Table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS order_items (
-                id SERIAL PRIMARY KEY,
-                order_id INT REFERENCES orders(id),
-                product_id INT REFERENCES products(id),
-                quantity INT DEFAULT 1,
-                price_at_purchase DECIMAL(10, 2) NOT NULL
-            );
-        `);
-
-        // Migration: Ensure payment_method exists in orders
-        try {
-            await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT 'stripe';`);
-        } catch (err) { console.log("Migration note (payment_method):", err.message); }
-
-        // 5. Reviews Table (THIS WAS MISSING)
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS reviews (
-                id SERIAL PRIMARY KEY,
-                user_id INT REFERENCES users(id),
-                product_id INT REFERENCES products(id),
-                rating INT CHECK (rating >= 1 AND rating <= 5),
-                comment TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        // Notifications Table
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS notifications (
-        id SERIAL PRIMARY KEY,
-        firebase_uid VARCHAR(255) NOT NULL,
-        title VARCHAR(255) NOT NULL,
-        message TEXT NOT NULL,
-        type VARCHAR(50) DEFAULT 'info',
-        is_read BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-        // Vouchers Table
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS vouchers (
-        id SERIAL PRIMARY KEY,
-        code VARCHAR(50) UNIQUE NOT NULL,
-        description TEXT,
-        discount_type VARCHAR(20) CHECK (discount_type IN ('fixed', 'percentage')),
-        discount_value DECIMAL(10, 2) NOT NULL,
-        min_spend DECIMAL(10, 2) DEFAULT 0,
-        seller_id INTEGER REFERENCES users(id) ON DELETE CASCADE, -- Null for Global Platform Vouchers
-        usage_limit INTEGER DEFAULT 100,
-        expires_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-
-        // User Vouchers (Claims)
-        await client.query(`
-      CREATE TABLE IF NOT EXISTS user_vouchers (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        voucher_id INTEGER REFERENCES vouchers(id) ON DELETE CASCADE,
-        is_used BOOLEAN DEFAULT FALSE,
-        claimed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, voucher_id) -- User can only claim once per voucher type
-      );
-    `);
-
-        // Seed some vouchers if empty
-        const voucherCheck = await client.query('SELECT count(*) FROM vouchers');
-        if (parseInt(voucherCheck.rows[0].count) === 0) {
-            console.log("Seeding Vouchers...");
-            await client.query(`
-        INSERT INTO vouchers (code, description, discount_type, discount_value, min_spend, usage_limit, expires_at)
-        VALUES 
-        ('WELCOME10', 'RM10 off your first purchase', 'fixed', 10.00, 50.00, 1000, NOW() + INTERVAL '30 days'),
-        ('FREE5', 'RM5 shipping discount', 'fixed', 5.00, 20.00, 500, NOW() + INTERVAL '7 days'),
-        ('SUPER20', '20% off capped at RM50', 'percentage', 20.00, 100.00, 200, NOW() + INTERVAL '14 days');
-      `);
-        }
-
-        // Migration: Snapshotting for Order Items (Prevent '0 items' on deletion)
-        try {
-            await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS product_name VARCHAR(255);`);
-            await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS product_image TEXT;`);
-        } catch (err) { console.log("Migration note (order_snapshot):", err.message); }
-
-
-        console.log("Database schema initialized.");
-
-    } catch (err) {
-        console.error("Error initializing database:", err);
-    } finally {
-        client.release();
-    }
-}
-
-// Run DB init on startup
-initDatabase();
 
 // --- ROUTES ---
 
 // Register a new user
 app.post("/users", async (req, res) => {
     try {
-        const { firebase_uid, email, role, username } = req.body;
+        const { firebase_uid, email, role, username, profile_image_url } = req.body;
 
         if (!firebase_uid || !email || !role) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
         const query = `
-      INSERT INTO users(firebase_uid, email, role, username)
-        VALUES($1, $2, $3, $4)
+      INSERT INTO users(firebase_uid, email, role, username, profile_image_url)
+        VALUES($1, $2, $3, $4, $5)
       ON CONFLICT(firebase_uid) DO NOTHING
         RETURNING *;
         `;
 
-        const newUser = await pool.query(query, [firebase_uid, email, role, username || email.split('@')[0]]);
+        const newUser = await pool.query(query, [
+            firebase_uid,
+            email,
+            role,
+            username || email.split('@')[0],
+            profile_image_url || null
+        ]);
 
         if (newUser.rows.length === 0) {
             const existingUser = await pool.query(
@@ -385,14 +186,14 @@ app.get("/sellers/:id", async (req, res) => {
 
         // Get aggregated stats (avg rating of all their products)
         const statsQuery = `
-SELECT
-COUNT(r.id) as total_reviews,
-    COALESCE(AVG(r.rating), 0) as average_rating
-            FROM products p
-            JOIN reviews r ON p.id = r.product_id
+            SELECT 
+                COUNT(r.id) as total_reviews, 
+                COALESCE(AVG(r.rating), 0) as average_rating 
+            FROM products p 
+            JOIN reviews r ON p.id = r.product_id 
             WHERE p.seller_id = $1;
-`;
-        const statsRes = await pool.query(statsQuery, [id]);
+        `;
+        const statsRes = await pool.query(statsQuery, [user.id]);
         const stats = statsRes.rows[0];
 
         res.json({
@@ -410,29 +211,21 @@ COUNT(r.id) as total_reviews,
 app.put("/users/:id/profile", async (req, res) => {
     try {
         const { id } = req.params;
-        // Default to null if undefined to prevents SQL injection/binding errors
         const store_name = req.body.store_name || null;
         const store_image_url = req.body.store_image_url || null;
         const store_banner_url = req.body.store_banner_url || null;
         const store_background_url = req.body.store_background_url || null;
 
-        // Use COALESCE to only update fields that are provided (if they are NOT null in the database? No, COALESCE($1, column) means if $1 is null, keep column)
-        // Wait, if I pass null, it will not update? 
-        // Logic: COALESCE($1, store_name). If $1 is NULL, it uses store_name (existing value).
-        // This is correct for "Partial Update" logic. 
-        // BUT if I want to "unset" a value (set to null), this logic prevents it.
-        // However, currently we only overwrite with new images, we don't 'delete' images. So this safely handles "undefined/null" as "do not change".
-
         const query = `
             UPDATE users
-SET
-store_name = COALESCE($1, store_name),
-    store_image_url = COALESCE($2, store_image_url),
-    store_banner_url = COALESCE($3, store_banner_url),
-    store_background_url = COALESCE($4, store_background_url)
+            SET
+                store_name = COALESCE($1, store_name),
+                store_image_url = COALESCE($2, store_image_url),
+                store_banner_url = COALESCE($3, store_banner_url),
+                store_background_url = COALESCE($4, store_background_url)
             WHERE id = $5 
             RETURNING id, email, role, store_name, store_image_url, store_banner_url, store_background_url;
-`;
+        `;
         const updatedUser = await pool.query(query, [store_name, store_image_url, store_banner_url, store_background_url, id]);
 
         if (updatedUser.rows.length === 0) {
@@ -460,8 +253,8 @@ app.put("/users/:firebase_uid/role", async (req, res) => {
             UPDATE users 
             SET role = $1, store_name = COALESCE($2, store_name)
             WHERE firebase_uid = $3
-RETURNING *;
-`;
+            RETURNING *;
+        `;
         const updatedUser = await pool.query(query, [role, store_name, firebase_uid]);
 
         if (updatedUser.rows.length === 0) {
@@ -499,9 +292,9 @@ app.post("/products", async (req, res) => {
 
         const query = `
       INSERT INTO products(seller_id, name, description, price, image_url, category, stock, discount_percentage)
-VALUES($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING *;
-`;
+        VALUES($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *;
+        `;
 
         const newProduct = await pool.query(query, [
             finalSellerId,
@@ -541,37 +334,6 @@ app.get("/search-suggestions", async (req, res) => {
     }
 });
 
-// Helper: Seeded Random Generator for Backend
-function getSeededRandom(seed) {
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x);
-}
-
-function calculateDailyDiscount(product) {
-    // If product has a real DB discount, use it (Master Override)
-    if (product.discount_percentage > 0) return product;
-
-    // Generate Unique Daily Seed
-    const todayStr = new Date().toDateString(); // "Mon Jan 19 2026"
-    const todaySeed = todayStr.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-    // Create stable seed from Product ID (Always use integer value)
-    const prodIdNum = parseInt(product.id, 10);
-
-    const seed = prodIdNum + todaySeed;
-    const rand = getSeededRandom(seed); // 0 to 1
-
-    // 40% Chance to be in Flash Sale
-    if (rand < 0.4) {
-        // Discount tiers: 10, 20, 30, 40, 50
-        const discountRand = getSeededRandom(seed + 123);
-        const discount = Math.floor(discountRand * 5 + 1) * 10;
-        return { ...product, discount_percentage: discount };
-    }
-
-    return product;
-}
-
 // Get all products (with average rating, optional filter by seller_id)
 app.get("/products", async (req, res) => {
     try {
@@ -579,10 +341,10 @@ app.get("/products", async (req, res) => {
         let queryText = `
             SELECT p.*,
             (SELECT COALESCE(AVG(rating), 0) FROM reviews WHERE product_id = p.id) as average_rating,
-    (SELECT COUNT(id) FROM reviews WHERE product_id = p.id) as review_count,
-        (SELECT COALESCE(SUM(oi.quantity), 0) FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.product_id = p.id AND o.status NOT IN ('pending', 'cancelled')) as items_sold
+            (SELECT COUNT(id) FROM reviews WHERE product_id = p.id) as review_count,
+            (SELECT COALESCE(SUM(oi.quantity), 0)::integer FROM order_items oi JOIN orders o ON oi.order_id = o.id WHERE oi.product_id = p.id AND o.status != 'cancelled') as items_sold
             FROM products p
-    `;
+        `;
 
         const params = [];
         if (seller_id) {
@@ -593,7 +355,6 @@ app.get("/products", async (req, res) => {
                 if (userRes.rows.length > 0) {
                     filterId = userRes.rows[0].id;
                 } else {
-                    // User not found, so no products
                     return res.json([]);
                 }
             }
@@ -604,11 +365,7 @@ app.get("/products", async (req, res) => {
         queryText += ` ORDER BY p.created_at DESC; `;
 
         const products = await pool.query(queryText, params);
-
-        // Apply Daily Flash Sale Logic
-        const processedProducts = products.rows.map(p => calculateDailyDiscount(p));
-
-        res.json(processedProducts);
+        res.json(products.rows);
     } catch (error) {
         res.status(500).json({ error: "Server Error" });
     }
@@ -622,7 +379,7 @@ app.put("/products/:id", async (req, res) => {
 
         const result = await pool.query(
             `UPDATE products
-             SET name = $1, description = $2, price = $3, stock = $4, category = $5, image_url = COALESCE($6, image_url), discount_percentage = COALESCE($8, discount_percentage)
+             SET name = $1, description = $2, price = $3, stock = $4, category = $5, image_url = COALESCE($6, image_url), discount_percentage = $8
              WHERE id = $7 RETURNING * `,
             [name, description, price, stock, category, image_url, id, discount_percentage]
         );
@@ -641,10 +398,7 @@ app.put("/products/:id", async (req, res) => {
 app.delete("/products/:id", async (req, res) => {
     try {
         const { id } = req.params;
-
         // In a real app, you should check if the requester is the owner of the product
-        // For now, we trust the frontend logic or assume admin/owner access
-
         const deleteQuery = "DELETE FROM products WHERE id = $1 RETURNING *";
         const result = await pool.query(deleteQuery, [id]);
 
@@ -665,33 +419,31 @@ app.get("/products/:id", async (req, res) => {
         const { id } = req.params;
         const query = `
             SELECT p.*,
-    u.email as seller_email,
-    u.store_name,
-    u.store_image_url,
-    COALESCE(AVG(r.rating), 0) as average_rating,
-    COUNT(r.id) as review_count,
-    (
-        SELECT COALESCE(AVG(r2.rating), 0)
-                       FROM reviews r2
-                       JOIN products p2 ON r2.product_id = p2.id
-                       WHERE p2.seller_id = p.seller_id
-                   ) as seller_rating
+            u.email as seller_email,
+            u.store_name,
+            u.store_image_url,
+            u.firebase_uid as seller_firebase_uid,
+            COALESCE(AVG(r.rating), 0) as average_rating,
+            COUNT(r.id) as review_count,
+            (
+                SELECT COALESCE(AVG(r2.rating), 0)
+                FROM reviews r2
+                JOIN products p2 ON r2.product_id = p2.id
+                WHERE p2.seller_id = p.seller_id
+            ) as seller_rating
             FROM products p 
             LEFT JOIN reviews r ON p.id = r.product_id 
             LEFT JOIN users u ON p.seller_id = u.id
             WHERE p.id = $1:: integer
-            GROUP BY p.id, u.email, u.store_name, u.store_image_url, u.id;
-`;
+            GROUP BY p.id, u.email, u.store_name, u.store_image_url, u.id, u.firebase_uid;
+        `;
         const product = await pool.query(query, [id]);
 
         if (product.rows.length === 0) {
             return res.status(404).json({ error: "Product not found" });
         }
 
-        // Apply Daily Flash Sale Logic
-        const processedProduct = calculateDailyDiscount(product.rows[0]);
-
-        res.json(processedProduct);
+        res.json(product.rows[0]);
     } catch (error) {
         console.error("Error fetching product:", error);
         res.status(500).json({ error: "Server Error" });
@@ -715,9 +467,9 @@ app.post("/reviews", async (req, res) => {
 
         const query = `
             INSERT INTO reviews(user_id, product_id, rating, comment)
-VALUES($1, $2, $3, $4)
-RETURNING *;
-`;
+            VALUES($1, $2, $3, $4)
+            RETURNING *;
+        `;
         const newReview = await pool.query(query, [user_id, product_id, rating, comment]);
         res.json(newReview.rows[0]);
     } catch (error) {
@@ -736,7 +488,7 @@ app.get("/products/:id/reviews", async (req, res) => {
             JOIN users u ON r.user_id = u.id
             WHERE r.product_id = $1
             ORDER BY r.created_at DESC;
-`;
+        `;
         const reviews = await pool.query(query, [id]);
         res.json(reviews.rows);
     } catch (error) {
@@ -746,8 +498,7 @@ app.get("/products/:id/reviews", async (req, res) => {
 });
 
 /**
- * NEW: Create an Order
- * Expects: { firebase_uid, items: [{id, quantity, price}], total_amount, shipping_address }
+ * Create an Order
  */
 app.post("/orders", async (req, res) => {
     const client = await pool.connect();
@@ -770,9 +521,9 @@ app.post("/orders", async (req, res) => {
         // 2. Create Order
         const orderQuery = `
       INSERT INTO orders(user_id, firebase_uid, total_amount, shipping_address, status, payment_method)
-VALUES($1, $2, $3, $4, 'pending', $5)
-RETURNING *;
-`;
+        VALUES($1, $2, $3, $4, 'pending', $5)
+        RETURNING *;
+        `;
         const orderRes = await client.query(orderQuery,
             [user_id, firebase_uid, total_amount, JSON.stringify(shipping_address), req.body.payment_method || 'stripe']
         );
@@ -782,18 +533,32 @@ RETURNING *;
         const orderId = newOrder.id;
 
         for (const item of items) {
-            // Retrieve details to be safe, or trust frontend (trusting frontend for speed here, but validated by ID ideally)
-            // We'll trust frontend 'item' has name/image or we query it. 
-            // To be robust, let's query the product details for snapshotting
-            const productRes = await client.query("SELECT name, image_url FROM products WHERE id = $1", [item.id]);
+            // Retrieve details
+            const productRes = await client.query("SELECT name, image_url, stock FROM products WHERE id = $1 FOR UPDATE", [item.id]);
             const productData = productRes.rows[0];
-            const name = productData ? productData.name : "Unknown Product";
-            const image = productData ? productData.image_url : "";
 
+            if (!productData) {
+                throw new Error(`Product ID ${item.id} not found`);
+            }
+
+            if (productData.stock < item.quantity) {
+                throw new Error(`Insufficient stock for ${productData.name}. Available: ${productData.stock}`);
+            }
+
+            const name = productData.name;
+            const image = productData.image_url;
+
+            // Creates Order Item
             await client.query(
                 `INSERT INTO order_items(order_id, product_id, quantity, price_at_purchase, product_name, product_image)
-VALUES($1, $2, $3, $4, $5, $6)`,
+                 VALUES($1, $2, $3, $4, $5, $6)`,
                 [orderId, item.id, item.quantity, item.price, name, image]
+            );
+
+            // Decrement Stock
+            await client.query(
+                "UPDATE products SET stock = stock - $1 WHERE id = $2",
+                [item.quantity, item.id]
             );
         }
 
@@ -806,14 +571,9 @@ VALUES($1, $2, $3, $4, $5, $6)`,
             [firebase_uid, "Order Placed", notificationMessage, "success"]
         );
 
-        // 7. NEW: Create Notification for Seller(s)
+        // 7. Create Notification for Seller(s)
         try {
-            // Group items by seller to avoid spamming 10 notifications for 10 items
             const sellerItemsMap = {};
-
-            // We need to fetch seller_id for each product_id
-            // items array has {id, quantity, price}. id is product_id.
-            // Let's query products to find owners.
             for (const item of items) {
                 const prodRes = await pool.query("SELECT seller_id, name FROM products WHERE id = $1", [item.id]);
                 if (prodRes.rows.length > 0) {
@@ -823,13 +583,10 @@ VALUES($1, $2, $3, $4, $5, $6)`,
                 }
             }
 
-            // For each unique seller, send notification
             for (const [sellerId, productNames] of Object.entries(sellerItemsMap)) {
-                // Get Seller Firebase UID
                 const sellerUserRes = await pool.query("SELECT firebase_uid FROM users WHERE id = $1", [sellerId]);
                 if (sellerUserRes.rows.length > 0) {
                     const sellerUid = sellerUserRes.rows[0].firebase_uid;
-                    // Don't notify if seller bought their own item (optional check, but good UX)
                     if (sellerUid !== firebase_uid) {
                         const message = `[Seller] You have a new order for: ${productNames.join(", ")}.`;
                         await pool.query(
@@ -841,7 +598,6 @@ VALUES($1, $2, $3, $4, $5, $6)`,
             }
         } catch (notifyErr) {
             console.error("Failed to notify sellers:", notifyErr);
-            // Non-critical, continue
         }
 
         console.log(`Order created for user ${firebase_uid}: ID ${orderId} `);
@@ -856,10 +612,8 @@ VALUES($1, $2, $3, $4, $5, $6)`,
     }
 });
 
-
-
 /**
- * NEW: Get User Notifications
+ * Get User Notifications
  */
 app.get("/notifications/:firebase_uid", async (req, res) => {
     try {
@@ -876,7 +630,7 @@ app.get("/notifications/:firebase_uid", async (req, res) => {
 });
 
 /**
- * NEW: Mark Notification as Read// PUT /notifications/:id/read - Mark as read
+ * Mark Notification as Read
  */
 app.put("/notifications/:id/read", async (req, res) => {
     try {
@@ -889,9 +643,7 @@ app.put("/notifications/:id/read", async (req, res) => {
     }
 });
 
-// GET /vouchers: List all available vouchers for a user (claimed status optional)
-// For simplicity, we list all valid vouchers. Frontend checks if claimed.
-// Ideally, we return "is_claimed" flag if userId is passed.
+// GET /vouchers
 app.get("/vouchers", async (req, res) => {
     try {
         const { firebase_uid } = req.query;
@@ -923,25 +675,19 @@ app.get("/vouchers", async (req, res) => {
     }
 });
 
-// POST /vouchers/claim: Claim a voucher
+// POST /vouchers/claim
 app.post("/vouchers/claim", async (req, res) => {
     try {
         const { firebase_uid, voucher_id } = req.body;
 
-        // Get user id
         const userRes = await pool.query("SELECT id FROM users WHERE firebase_uid = $1", [firebase_uid]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: "User not found" });
         const userId = userRes.rows[0].id;
 
-        // Check if already claimed
         const check = await pool.query("SELECT * FROM user_vouchers WHERE user_id = $1 AND voucher_id = $2", [userId, voucher_id]);
         if (check.rows.length > 0) return res.status(400).json({ error: "Already claimed" });
 
-        // Claim
         await pool.query("INSERT INTO user_vouchers(user_id, voucher_id) VALUES($1, $2)", [userId, voucher_id]);
-
-        // Decrement usage logic could go here, but usage_limit usually means global limit. 
-        // For now we assume limit is claim limit. 
 
         res.json({ message: "Voucher claimed successfully" });
 
@@ -952,7 +698,7 @@ app.post("/vouchers/claim", async (req, res) => {
 });
 
 /**
- * NEW: Mark ALL Notifications as Read
+ * Mark ALL Notifications as Read
  */
 app.put("/notifications/read-all/:uid", async (req, res) => {
     try {
@@ -966,29 +712,27 @@ app.put("/notifications/read-all/:uid", async (req, res) => {
 });
 
 /**
- * NEW: Get Single Order Details (for Checkout Resume)
+ * Get Single Order Details (for Checkout Resume)
  */
 app.get("/orders/details/:id", async (req, res) => {
     try {
         const { id } = req.params;
 
-        // 1. Get Order
         const orderRes = await pool.query("SELECT * FROM orders WHERE id = $1", [id]);
         if (orderRes.rows.length === 0) {
             return res.status(404).json({ error: "Order not found" });
         }
         const order = orderRes.rows[0];
 
-        // 2. Get Items (Use Coalesce for Snapshot)
         const itemsRes = await pool.query(`
             SELECT oi.*,
-    COALESCE(oi.product_name, p.name, 'Item Removed') as name,
-    COALESCE(oi.product_image, p.image_url) as image_url,
-    oi.price_at_purchase as price 
+            COALESCE(oi.product_name, p.name, 'Item Removed') as name,
+            COALESCE(oi.product_image, p.image_url) as image_url,
+            oi.price_at_purchase as price 
             FROM order_items oi
             LEFT JOIN products p ON oi.product_id = p.id
             WHERE oi.order_id = $1
-    `, [id]);
+        `, [id]);
 
         order.items = itemsRes.rows.map(item => ({
             ...item,
@@ -1003,27 +747,25 @@ app.get("/orders/details/:id", async (req, res) => {
 });
 
 /**
- * NEW: Get User Orders (Updated for Snapshot)
+ * Get User Orders
  */
 app.get("/orders/:firebase_uid", async (req, res) => {
     try {
         const { firebase_uid } = req.params;
 
-        // 1. Get Orders
         const ordersRes = await pool.query("SELECT * FROM orders WHERE firebase_uid = $1 ORDER BY created_at DESC", [firebase_uid]);
         const orders = ordersRes.rows;
 
-        // 2. Get Items for each order
         for (let order of orders) {
             const itemsRes = await pool.query(`
                 SELECT oi.*,
-    COALESCE(oi.product_name, p.name, 'Item Removed') as name,
-    COALESCE(oi.product_image, p.image_url) as image_url,
-    oi.price_at_purchase as price
+                COALESCE(oi.product_name, p.name, 'Item Removed') as name,
+                COALESCE(oi.product_image, p.image_url) as image_url,
+                oi.price_at_purchase as price
                 FROM order_items oi
                 LEFT JOIN products p ON oi.product_id = p.id
                 WHERE oi.order_id = $1
-    `, [order.id]);
+            `, [order.id]);
 
             order.items = itemsRes.rows.map(item => ({
                 ...item,
@@ -1039,14 +781,13 @@ app.get("/orders/:firebase_uid", async (req, res) => {
 });
 
 /**
- * NEW: Update Order Status
+ * Update Order Status
  */
 app.put("/orders/:id/status", async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
 
-        // 1. Update Status
         const result = await pool.query(
             "UPDATE orders SET status = $1 WHERE id = $2 RETURNING *",
             [status, id]
@@ -1058,7 +799,7 @@ app.put("/orders/:id/status", async (req, res) => {
 
         const order = result.rows[0];
 
-        // 2. Create Notification (Only if status actually changes to prevent duplicates)
+        // Create Notification (Only if status actually changes)
         if (order.status !== status) {
             let title = "Order Update";
             let message = `Your order #${id} is now ${status}.`;
@@ -1086,11 +827,10 @@ app.put("/orders/:id/status", async (req, res) => {
                 type = "success";
             }
 
-            // Only send notification if we have a user to send to
             if (order.firebase_uid) {
                 await pool.query(
                     `INSERT INTO notifications (firebase_uid, title, message, type) 
-                 VALUES ($1, $2, $3, $4)`,
+                     VALUES ($1, $2, $3, $4)`,
                     [order.firebase_uid, title, message, type]
                 );
             }
@@ -1104,8 +844,7 @@ app.put("/orders/:id/status", async (req, res) => {
 });
 
 /**
- * NEW: Delete Order (Cancel)
- * Only allows deleting 'pending' orders
+ * Delete Order (Cancel)
  */
 app.delete("/orders/:id", async (req, res) => {
     const client = await pool.connect();
@@ -1114,7 +853,6 @@ app.delete("/orders/:id", async (req, res) => {
 
         await client.query('BEGIN');
 
-        // 1. Check Order Status
         const checkRes = await client.query("SELECT status FROM orders WHERE id = $1", [id]);
         if (checkRes.rows.length === 0) {
             throw new Error("Order not found");
@@ -1123,10 +861,7 @@ app.delete("/orders/:id", async (req, res) => {
             throw new Error("Only pending orders can be cancelled");
         }
 
-        // 2. Delete Order Items
         await client.query("DELETE FROM order_items WHERE order_id = $1", [id]);
-
-        // 3. Delete Order
         await client.query("DELETE FROM orders WHERE id = $1", [id]);
 
         await client.query('COMMIT');
@@ -1142,21 +877,19 @@ app.delete("/orders/:id", async (req, res) => {
 });
 
 /**
- * NEW: Wallet Payment Endpoint
- * Handles balance deduction and order status update atomically
+ * Wallet Payment Endpoint
  */
 app.post("/orders/pay-wallet", async (req, res) => {
     const client = await pool.connect();
     try {
-        const { orderId, userId } = req.body; // userId can be firebase_uid or int id
+        const { orderId, userId } = req.body;
 
         if (!orderId || !userId) {
             return res.status(400).json({ error: "Missing orderId or userId" });
         }
 
-        await client.query('BEGIN'); // Start Transaction
+        await client.query('BEGIN');
 
-        // 1. Get User Balance and ID (Handle FB UID vs INT)
         let userQuery = isNaN(userId)
             ? 'SELECT id, wallet_balance FROM users WHERE firebase_uid = $1 FOR UPDATE'
             : 'SELECT id, wallet_balance FROM users WHERE id = $1 FOR UPDATE';
@@ -1169,7 +902,6 @@ app.post("/orders/pay-wallet", async (req, res) => {
         const user = userRes.rows[0];
         const currentBalance = parseFloat(user.wallet_balance || 0);
 
-        // 2. Get Order Total
         const orderRes = await client.query("SELECT total_amount, status FROM orders WHERE id = $1", [orderId]);
         if (orderRes.rows.length === 0) {
             throw new Error("Order not found");
@@ -1177,7 +909,6 @@ app.post("/orders/pay-wallet", async (req, res) => {
         const order = orderRes.rows[0];
         const totalAmount = parseFloat(order.total_amount);
 
-        // 3. Validation
         if (order.status === 'paid') {
             throw new Error("Order is already paid");
         }
@@ -1185,11 +916,9 @@ app.post("/orders/pay-wallet", async (req, res) => {
             throw new Error("Insufficient wallet balance");
         }
 
-        // 4. Deduct Balance
         const newBalance = currentBalance - totalAmount;
         await client.query("UPDATE users SET wallet_balance = $1 WHERE id = $2", [newBalance, user.id]);
 
-        // 5. Update Order Status
         const updateOrderRes = await client.query(
             "UPDATE orders SET status = 'paid' WHERE id = $1 RETURNING *",
             [orderId]
@@ -1209,15 +938,12 @@ app.post("/orders/pay-wallet", async (req, res) => {
     }
 });
 
-
-
 // --- WALLET ENDPOINTS ---
 
 // GET Wallet Balance
 app.get('/wallet/:userId', async (req, res) => {
     const { userId } = req.params;
     try {
-        // Handle Firebase UID or Integer ID
         let query = isNaN(userId)
             ? 'SELECT wallet_balance FROM users WHERE firebase_uid = $1'
             : 'SELECT wallet_balance FROM users WHERE id = $1';
@@ -1228,7 +954,6 @@ app.get('/wallet/:userId', async (req, res) => {
             return res.status(404).json({ error: "User not found" });
         }
 
-        // Return balance (default to 0 if null)
         const balance = parseFloat(result.rows[0].wallet_balance || 0);
         res.json({ balance });
     } catch (err) {
@@ -1246,7 +971,6 @@ app.post('/wallet/topup', async (req, res) => {
     }
 
     try {
-        // 1. Get current balance
         let findUserQuery = isNaN(userId)
             ? 'SELECT id, wallet_balance FROM users WHERE firebase_uid = $1'
             : 'SELECT id, wallet_balance FROM users WHERE id = $1';
@@ -1261,7 +985,6 @@ app.post('/wallet/topup', async (req, res) => {
         const currentBalance = parseFloat(user.wallet_balance || 0);
         const newBalance = currentBalance + parseFloat(amount);
 
-        // 2. Update balance
         await pool.query('UPDATE users SET wallet_balance = $1 WHERE id = $2', [newBalance, user.id]);
 
         res.json({
@@ -1275,7 +998,6 @@ app.post('/wallet/topup', async (req, res) => {
         res.status(500).json({ error: "Failed to top up wallet" });
     }
 });
-
 
 // --- AI CHATBOT ENDPOINT ---
 app.post("/chat", async (req, res) => {
@@ -1323,7 +1045,6 @@ app.post("/chat", async (req, res) => {
     }
 });
 
-
 // --- STRIPE PAYMENT ENDPOINT ---
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 
@@ -1339,26 +1060,24 @@ app.post("/create-checkout-session", async (req, res) => {
             return res.status(500).json({ error: "Stripe is not configured." });
         }
 
-        const { items, orderId } = req.body; // Expecting array of products and orderId
+        const { items, orderId } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({ error: "No items to checkout." });
         }
 
-        // 1. Format items for Stripe
         const lineItems = items.map((item) => ({
             price_data: {
-                currency: "myr", // Change to 'usd' if preferred
+                currency: "myr",
                 product_data: {
                     name: item.name,
                     images: item.image_url ? [item.image_url] : [],
                 },
-                unit_amount: Math.round(item.price * 100), // Convert to cents
+                unit_amount: Math.round(item.price * 100),
             },
             quantity: item.quantity,
         }));
 
-        // 2. Add Shipping Fee Line Item
         lineItems.push({
             price_data: {
                 currency: "myr",
@@ -1366,27 +1085,24 @@ app.post("/create-checkout-session", async (req, res) => {
                     name: "Shipping Fee",
                     description: "Standard Delivery",
                 },
-                unit_amount: 500, // RM5.00 in cents
+                unit_amount: 500,
             },
             quantity: 1,
         });
 
-        // 3. Create Session Config
         const sessionConfig = {
             payment_method_types: req.body.paymentMethodType || ["card"],
             line_items: lineItems,
             mode: "payment",
-            success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/success?order_id=${orderId}`, // Pass orderId to success page
-            cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment-cancel?order_id=${orderId}`, // Clean up order on cancel
+            success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/success?order_id=${orderId}`,
+            cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment-cancel?order_id=${orderId}`,
         };
 
-        // 4. Apply Discount (if any)
         const { discountAmount } = req.body;
         if (discountAmount && parseFloat(discountAmount) > 0) {
             try {
-                // Create a one-time coupon
                 const coupon = await stripe.coupons.create({
-                    amount_off: Math.round(parseFloat(discountAmount) * 100), // Convert to cents
+                    amount_off: Math.round(parseFloat(discountAmount) * 100),
                     currency: 'myr',
                     duration: 'once',
                     name: 'Voucher Discount'
@@ -1394,8 +1110,6 @@ app.post("/create-checkout-session", async (req, res) => {
                 sessionConfig.discounts = [{ coupon: coupon.id }];
             } catch (err) {
                 console.error("Failed to create coupon:", err);
-                // Proceed without discount or handle error? For checking out, maybe better to fail?
-                // But let's log and proceed for now, or failing might differ user exp.
             }
         }
 
@@ -1406,6 +1120,42 @@ app.post("/create-checkout-session", async (req, res) => {
     } catch (error) {
         console.error("Stripe Checkout Error:", error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// --- SUBSCRIBE NEWSLETTER ENDPOINT ---
+app.post("/subscribe", async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: "Email required" });
+
+        if (!EMAIL_USER || !EMAIL_PASS) {
+            console.warn("⚠️  Email credentials missing in .env. Email NOT sent.");
+            return res.json({ message: "Subscribed (Email skipped due to config)" });
+        }
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: EMAIL_USER,
+                pass: EMAIL_PASS
+            }
+        });
+
+        const mailOptions = {
+            from: `"ShopGo Team" <${EMAIL_USER}>`,
+            to: email,
+            subject: "Welcome to the ShopGo Community! 🎉",
+            html: getWelcomeEmailHtml()
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`Welcome email sent to: ${email}`);
+        res.json({ message: "Welcome email sent" });
+
+    } catch (error) {
+        console.error("Email Error:", error);
+        res.status(200).json({ message: "Subscribed (Email failed)" });
     }
 });
 
