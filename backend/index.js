@@ -65,6 +65,72 @@ app.post("/users", async (req, res) => {
     }
 });
 
+/**
+ * PUT /users/:id/profile
+ * Updates a user's store profile (name, images).
+ */
+app.put("/users/:id/profile", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { store_name, store_image_url, store_banner_url, store_background_url } = req.body;
+
+        let query;
+        let params;
+
+        // Build the dynamic update query
+        // We handle checking for Firebase UID vs Integer ID
+        const isFirebaseUid = !/^\d+$/.test(id);
+
+        const updateFields = [];
+        const values = [];
+        let valueCounter = 1;
+
+        if (store_name !== undefined) {
+            updateFields.push(`store_name = $${valueCounter++}`);
+            values.push(store_name);
+        }
+        if (store_image_url !== undefined) {
+            updateFields.push(`store_image_url = $${valueCounter++}`);
+            values.push(store_image_url);
+        }
+        if (store_banner_url !== undefined) {
+            updateFields.push(`store_banner_url = $${valueCounter++}`);
+            values.push(store_banner_url);
+        }
+        if (store_background_url !== undefined) {
+            updateFields.push(`store_background_url = $${valueCounter++}`);
+            values.push(store_background_url);
+        }
+
+        if (updateFields.length === 0) {
+            return res.status(400).json({ error: "No fields to update" });
+        }
+
+        values.push(id); // The ID is the last parameter
+
+        const whereClause = isFirebaseUid ? `firebase_uid = $${valueCounter}` : `id = $${valueCounter}`;
+
+        query = `
+            UPDATE users
+            SET ${updateFields.join(", ")}
+            WHERE ${whereClause}
+            RETURNING *;
+        `;
+
+        const result = await pool.query(query, values);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        res.json(result.rows[0]);
+
+    } catch (err) {
+        console.error("Error updating profile:", err);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
 // Seller Analytics
 app.get("/seller/analytics/:uid", async (req, res) => {
     try {
