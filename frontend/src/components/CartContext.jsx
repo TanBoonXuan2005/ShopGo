@@ -35,15 +35,36 @@ export const CartProvider = ({ children }) => {
             // Ensure we compare IDs safely (handle string vs number)
             const existingItem = prevItems.find(item => String(item.id) === String(product.id));
 
+            // Calculate Discounted Price
+            const rawPrice = parseFloat(product.price);
+            const discount = parseFloat(product.discount_percentage || 0);
+            const finalPrice = discount > 0 ? rawPrice * (1 - discount / 100) : rawPrice;
+
+            // Create item object with correct price
+            const itemToAdd = {
+                ...product,
+                price: finalPrice, // Use discounted price for calculations/payment
+                original_price: rawPrice // Keep original for UI display if needed
+            };
+
             let newItems;
             if (existingItem) {
                 newItems = prevItems.map(item =>
                     String(item.id) === String(product.id)
-                        ? { ...item, quantity: item.quantity + quantity }
+                        ? { ...item, quantity: item.quantity + quantity } // Keep existing price or update? usually keep existing unless we want to update price on re-add. Let's keep existing item properties but update quantity.
+                        // Actually, if price changed or discount changed, re-adding usually updates it.
+                        // Let's update the item properties too.
+                        : item
+                );
+                // Wait, map above only updates quantity on the OLD item.
+                // Let's update the item with new price properties too.
+                newItems = prevItems.map(item =>
+                    String(item.id) === String(product.id)
+                        ? { ...itemToAdd, quantity: item.quantity + quantity }
                         : item
                 );
             } else {
-                newItems = [...prevItems, { ...product, quantity }];
+                newItems = [...prevItems, { ...itemToAdd, quantity }];
             }
 
             console.log("New Cart State:", newItems);
