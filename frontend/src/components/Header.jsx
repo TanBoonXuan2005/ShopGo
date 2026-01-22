@@ -138,10 +138,7 @@ export default function Header() {
 
                         {/* MOBILE ACTIONS (Cart + Toggle) */}
                         <div className="d-flex align-items-center gap-1">
-                            {/* SALES (Hidden on Mobile, moved to Menu) */}
-                            <Link to="/sales" className="text-danger p-2 fw-bold text-decoration-none d-none d-sm-block">
-                                <span style={{ fontSize: '1.2rem' }}>🔥</span>
-                            </Link>
+
 
                             {/* CHAT (Keep on mobile for quick access) */}
                             {currentUser && (
