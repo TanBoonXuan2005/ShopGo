@@ -9,7 +9,7 @@ export default function Checkout() {
     const { cartItems, getCartTotal, clearCart } = useCart();
     const { currentUser } = useContext(AuthContext);
     const navigate = useNavigate();
-    const location = useLocation(); // Location hook
+    const location = useLocation(); 
 
     // Get Voucher Data from Cart
     const { selectedVoucher, discountAmount: paramDiscount } = location.state || {};
@@ -17,17 +17,17 @@ export default function Checkout() {
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [paymentMethod, setPaymentMethod] = useState('stripe'); // 'stripe' or 'wallet'
+    const [paymentMethod, setPaymentMethod] = useState('stripe'); 
     const [walletBalance, setWalletBalance] = useState(0);
-    const [createdOrderId, setCreatedOrderId] = useState(null); // Track created order to prevent duplicates
+    const [createdOrderId, setCreatedOrderId] = useState(null);
 
-    // Local state for items to display (supports empty cart if resuming order)
+    // Local state for items to display
     const [checkoutItems, setCheckoutItems] = useState([]);
     const [checkoutTotal, setCheckoutTotal] = useState(0);
 
     // Calculate Final Total including Shipping and Discount
     const shippingCost = 5;
-    const finalTotal = Math.max(0, checkoutTotal + shippingCost - voucherDiscount); // Use checkoutTotal state basis
+    const finalTotal = Math.max(0, checkoutTotal + shippingCost - voucherDiscount); 
 
     // Resume Order Logic
     const [searchParams] = useSearchParams();
@@ -52,12 +52,7 @@ export default function Checkout() {
         const resolveOrder = async () => {
             let orderIdToResume = existingOrderId || sessionStorage.getItem('pending_order_id');
             const persistedTotal = sessionStorage.getItem('pending_order_total');
-
-            // If we have a pending order...
             if (orderIdToResume) {
-                // Check if it matches existing param or persisted session
-                // If total matches current cart, we can just use current cart.
-                // BUT if cart is empty (because we cleared it), we MUST fetch the order.
 
                 if (cartItems.length === 0) {
                     console.log("Cart is empty. Fetching Pending Order Details...", orderIdToResume);
@@ -67,23 +62,7 @@ export default function Checkout() {
                             const order = await res.json();
                             setCreatedOrderId(order.id);
                             setCheckoutItems(order.items.map(i => ({ ...i, id: i.product_id || i.id, quantity: i.quantity, price: parseFloat(i.price) })));
-                            setCheckoutTotal(parseFloat(order.total_amount) - shippingCost + voucherDiscount); // Reconstruction: Total - shipping + discount? 
-                            // Wait, logic is tricky if resuming. Backend total is FINAL.
-                            // If resuming, we rely on `order.total_amount`.
-                            // If we rely on `order.total_amount`, then `finalTotal` calculation above might be double dipping if we set checkoutTotal wrong.
-
-                            // Simplification: If resuming, just set checkoutTotal so that final matches.
-                            // Or better: Use `order.total_amount` as the source of truth for `finalTotal` if resuming.
-                            // But `finalTotal` is derived.
-
-                            // Let's assume for MVP: Voucher logic only applies to NEW orders flow from Cart.
-                            // Resuming orders usually means they are already created with fixed total.
-                            // So if `orderIdToResume` exists, we assume voucher is already baked in (if backend supported it) or we ignore it.
-                            // For now, if resuming, we assume `order.total_amount` is the amount to pay.
-
-                            // Adjusting setCheckoutTotal to match:
-                            // We set checkoutTotal such that (checkoutTotal + 5 - 0) = order.total_amount
-                            // So checkoutTotal = order.total_amount - 5.
+                            setCheckoutTotal(parseFloat(order.total_amount) - shippingCost + voucherDiscount);
                             setCheckoutTotal(parseFloat(order.total_amount) - 5);
 
                             // Re-save to session just in case
@@ -95,11 +74,6 @@ export default function Checkout() {
                         console.error("Failed to fetch pending order:", err);
                     }
                 } else {
-                    // Cart has items.
-                    // If persisted total matches current cart total, we assume same order.
-                    // But wait, if user applied voucher now, total is different.
-                    // If logic detects voucher, maybe force new order?
-                    // To be safe: if voucherDiscount > 0, we should probably ignore pending order and create new one to apply discount.
                     if (voucherDiscount > 0) {
                         setCreatedOrderId(null); // Force new order
                         sessionStorage.removeItem('pending_order_id');
@@ -131,12 +105,8 @@ export default function Checkout() {
             .then(data => setWalletBalance(data.balance || 0))
             .catch(err => console.error("Error fetching balance:", err));
 
-    }, [currentUser, existingOrderId, cartItems]); // specific dependency array needed logic
+    }, [currentUser, existingOrderId, cartItems]);
 
-
-
-    // Separate effect for Modal to ensure it triggers regardless of data fetching path
-    // Separate effect for Modal to ensure it triggers regardless of data fetching path
     useEffect(() => {
         if (existingOrderId && isCanceled === 'true') {
             console.log("Triggering Resume Modal");
@@ -191,11 +161,10 @@ export default function Checkout() {
                 sessionStorage.setItem('pending_order_id', orderId);
                 sessionStorage.setItem('pending_order_total', finalTotal.toString());
 
-                // NEW: Clear Cart immediately as order is created
+                // Clear Cart immediately as order is created
                 clearCart();
 
             } else {
-                // Optional: Update payment method on existing order if changed (Optimization)
                 console.log(`Reusing Order ID: ${orderId}`);
             }
 
@@ -211,7 +180,6 @@ export default function Checkout() {
                         items: checkoutItems, // Use local items
                         orderId: orderId,
                         paymentMethodType: paymentType,
-                        // Calculate discount to send (Explicit voucher OR Implicit difference for resumed orders)
                         discountAmount: voucherDiscount || Math.max(0, (checkoutItems.reduce((acc, item) => acc + (item.price * item.quantity), 0) + shippingCost) - finalTotal)
                     }),
                 });

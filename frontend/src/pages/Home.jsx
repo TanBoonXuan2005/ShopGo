@@ -1,9 +1,9 @@
-import { Container, Row, Col, Card, Button, Spinner, Alert, Carousel, Offcanvas, Form, InputGroup, Toast, ToastContainer } from "react-bootstrap";
+import { Container, Row, Col, Button, Spinner, Alert, Carousel, Offcanvas, Form, InputGroup, Toast, ToastContainer } from "react-bootstrap";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams, useParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import ProductCard from "../components/ProductCard";
-import { FaStar, FaShoppingCart, FaTshirt, FaMobileAlt, FaCouch, FaPumpSoap, FaFootballBall, FaGamepad, FaFilter, FaLaptop } from "react-icons/fa";
+import { FaStar, FaTshirt, FaMobileAlt, FaCouch, FaPumpSoap, FaFootballBall, FaGamepad, FaFilter, FaLaptop } from "react-icons/fa";
 import { useCart } from "../components/CartContext";
 
 export default function Home() {
@@ -16,8 +16,8 @@ export default function Home() {
     const [recentProducts, setRecentProducts] = useState([]);
 
     // Filter States
-    const [priceFilters, setPriceFilters] = useState([]); // Array of {min, max}
-    const [minRating, setMinRating] = useState(0); // number
+    const [priceFilters, setPriceFilters] = useState([]); 
+    const [minRating, setMinRating] = useState(0); 
 
     // Quick Add States
     const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -93,12 +93,6 @@ export default function Home() {
         if (category) {
             const catLower = category.toLowerCase();
             const prodCat = (product.category || "").toLowerCase();
-
-            // Strict matching: The product's category must match the selected category
-            // We verify if the product category *includes* the url param to allow flexibility "Mens Fashion" matching "fashion"
-            // But checking strictly against "book" vs "notebook" issue:
-            // "Books" should match "books". "Laptops" should match "laptops".
-
             if (prodCat !== catLower && !prodCat.includes(catLower)) {
                 return false;
             }

@@ -51,13 +51,9 @@ export const CartProvider = ({ children }) => {
             if (existingItem) {
                 newItems = prevItems.map(item =>
                     String(item.id) === String(product.id)
-                        ? { ...item, quantity: item.quantity + quantity } // Keep existing price or update? usually keep existing unless we want to update price on re-add. Let's keep existing item properties but update quantity.
-                        // Actually, if price changed or discount changed, re-adding usually updates it.
-                        // Let's update the item properties too.
+                        ? { ...item, quantity: item.quantity + quantity } 
                         : item
                 );
-                // Wait, map above only updates quantity on the OLD item.
-                // Let's update the item with new price properties too.
                 newItems = prevItems.map(item =>
                     String(item.id) === String(product.id)
                         ? { ...itemToAdd, quantity: item.quantity + quantity }

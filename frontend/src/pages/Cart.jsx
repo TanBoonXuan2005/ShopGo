@@ -60,17 +60,14 @@ export default function Cart() {
         let discount = 0;
         const subtotal = getCartTotal();
 
-        if (subtotal < parseFloat(selectedVoucher.min_spend)) return 0; // Min spend check
+        if (subtotal < parseFloat(selectedVoucher.min_spend)) return 0;
 
         if (selectedVoucher.discount_type === 'fixed') {
             discount = parseFloat(selectedVoucher.discount_value);
         } else {
             discount = subtotal * (parseFloat(selectedVoucher.discount_value) / 100);
-            // Cap logic if needed, but schema didn't enforce capped amount explicitly yet other than maybe separate col? 
-            // We'll trust the value for now or assume unlimited cap for percentage unless descriptions says so.
-            // Wait, schema didn't have max_cap column. I'll assume standard % for now.
         }
-        return Math.min(discount, subtotal); // Cannot exceed subtotal
+        return Math.min(discount, subtotal); 
     };
 
     const discountAmount = calculateDiscount();

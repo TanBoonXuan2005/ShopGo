@@ -22,7 +22,7 @@ const CATEGORIES = [
 export default function AddProduct() {
     const { currentUser } = useContext(AuthContext);
     const navigate = useNavigate();
-    const { id } = useParams(); // Get Product ID for Edit Mode
+    const { id } = useParams(); 
     const fileInputRef = useRef(null);
     const isEditMode = !!id;
 
@@ -31,12 +31,12 @@ export default function AddProduct() {
     const [price, setPrice] = useState("");
     const [category, setCategory] = useState("Others");
     const [stock, setStock] = useState(1);
-    const [discount, setDiscount] = useState(""); // Discount state
-    const [imageFile, setImageFile] = useState(null); // Store the actual file
+    const [discount, setDiscount] = useState(""); 
+    const [imageFile, setImageFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const [initialLoading, setInitialLoading] = useState(isEditMode); // Loading state for fetching data
+    const [initialLoading, setInitialLoading] = useState(isEditMode); 
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
     // Fetch Product Data if Edit Mode
@@ -52,10 +52,9 @@ export default function AddProduct() {
                         setDescription(data.description || "");
                         setPrice(data.price);
                         setStock(data.stock || 1);
-                        setDiscount(data.discount_percentage || ""); // Load discount
+                        setDiscount(data.discount_percentage || ""); 
                         setCategory(data.category || "Others");
                         setPreview(data.image_url);
-                        // Ensure owner check? Maybe not strictly necessary if backend protects it or we trust UI
                     } else {
                         setError("Product not found.");
                     }
@@ -93,7 +92,7 @@ export default function AddProduct() {
             return;
         }
 
-        // For Add Mode: Image is required. For Edit Mode: Optional (keep existing).
+        // For Add Mode: Image is required. 
         if (!isEditMode && !imageFile) {
             setError("Please upload an image.");
             setLoading(false);
@@ -121,7 +120,7 @@ export default function AddProduct() {
                 image_url: imageUrl,
                 category,
                 stock: parseInt(stock),
-                discount_percentage: discount ? parseInt(discount) : 0 // Send discount
+                discount_percentage: discount ? parseInt(discount) : 0 
             };
 
             if (isEditMode) {

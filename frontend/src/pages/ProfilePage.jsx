@@ -35,13 +35,10 @@ export default function ProfilePage() {
     // 1. Force Refresh User Data on Mount
     useEffect(() => {
         if (currentUser) {
-            // Initialize username from context or email
             setUsername(currentUser.displayName || currentUser.username || "");
-
-            // Force Firebase to re-fetch latest data (Fix for stale photoURL)
             currentUser.reload().then(() => {
                 setPhoto(auth.currentUser?.photoURL);
-                // Also update username from reloaded user if needed
+                
                 if (auth.currentUser?.displayName) setUsername(auth.currentUser.displayName);
             }).catch(console.error);
         } else {
@@ -68,12 +65,7 @@ export default function ProfilePage() {
             }
 
             // 2. Update Backend (SQL)
-            // Note: Ensure your backend has a PUT route for /users/:id/profile
-            // If not, you might only need to update Firebase profile here
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-            // Optional: Send to backend if you are storing username/photo there
-            // await fetch(`${API_URL}/users/${currentUser.uid}`, { ... }) 
 
             // 3. Update Firebase Profile
             await updateProfile(currentUser, { displayName: username, photoURL: profileImageUrl });
@@ -109,8 +101,7 @@ export default function ProfilePage() {
         }
 
         try {
-            // 1. Re-authenticate user (Security Requirement)
-            // MUST use auth.currentUser (Firebase Object) not currentUser (Context Object)
+            // 1. Re-authenticate user 
             if (!auth.currentUser) throw new Error("User session expired. Please login again.");
 
             const credential = EmailAuthProvider.credential(auth.currentUser.email, currentPassword);

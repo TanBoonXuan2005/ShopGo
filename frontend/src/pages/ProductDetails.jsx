@@ -154,22 +154,10 @@ export default function ProductDetails() {
 
         try {
             const chatRef = doc(db, "chats", chatId);
-
-            // Create or update the chat safely. 
-            // setDoc with merge: true passes 'create' rule if new, 'update' rule if exists.
             await setDoc(chatRef, {
                 participants: participants,
                 updatedAt: serverTimestamp(),
-                // Only set lastMessage if it doesn't exist (to avoid overwriting valid history)
-                // Actually, for just opening the chat, we don't need to overwrite lastMessage if it exists.
-                // But Firestore setDoc merge doesn't have "set if missing" for fields easily without knowing.
-                // However, our chat creation only really cares about participants existing.
-                // Better approach: Just ensure the doc exists with participants.
             }, { merge: true });
-
-            // Note: If we want to strictly init lastMessage only on creation, 
-            // we might need a separate check or just accept that 'Chat Now' might not reset lastMessage (good).
-
             navigate(`/chat/${chatId}`);
         } catch (err) {
             console.error("Chat Error:", err);

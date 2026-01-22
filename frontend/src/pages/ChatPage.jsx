@@ -32,16 +32,9 @@ export default function ChatPage() {
     // 2. Load User's Chats
     useEffect(() => {
         if (!currentUser) return;
-
-
-
-        // Safety Timeout - Warn if Firestore hangs for > 30s, but don't kill it (might be slow network)
-
-
         const q = query(
             collection(db, "chats"),
             where("participants", "array-contains", currentUser.uid)
-            // orderBy("updatedAt", "desc") 
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -101,13 +94,11 @@ export default function ChatPage() {
                             newProfiles[otherUid] = data;
                             needsUpdate = true;
                         } else {
-                            // If 404 or other error, set a fallback so we don't keep trying and showing "Loading..."
                             newProfiles[otherUid] = { store_name: "Unknown User", role: "guest" };
                             needsUpdate = true;
                         }
                     } catch (err) {
                         console.error("Failed to fetch profile for", otherUid, err);
-                        // Fallback on catch
                         newProfiles[otherUid] = { store_name: "Unknown User", role: "guest" };
                         needsUpdate = true;
                     }
@@ -147,7 +138,6 @@ export default function ChatPage() {
 
     // Modal State
 
-
     // 1. Open Modal
     const handleDeleteChat = (chatId, e) => {
         e.stopPropagation();
@@ -181,9 +171,6 @@ export default function ChatPage() {
     const renderAvatar = (profile, uid, size = 50) => {
         let imageUrl = profile?.store_image_url || profile?.profile_image_url;
         let name = profile?.store_name || profile?.username || profile?.email || "U";
-
-        // Improve fallback for "Me (Self)" or null profile
-        // If the uid is the current user, try to use the AuthContext data directly if profile fetch failed/delayed
         if (uid === currentUser?.uid) {
             if (!imageUrl) imageUrl = currentUser.photoURL || currentUser.store_image_url || currentUser.profile_image_url;
             if (name === "U" || name === "Unknown User") name = currentUser.displayName || currentUser.store_name || currentUser.username || "Me";

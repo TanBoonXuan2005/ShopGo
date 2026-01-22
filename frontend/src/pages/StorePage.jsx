@@ -16,16 +16,14 @@ export default function StorePage() {
     const { sellerId } = useParams();
     const { currentUser } = useContext(AuthContext);
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams(); // Get URL params
-    const q = searchParams.get('q') || ""; // Get 'q' param
+    const [searchParams] = useSearchParams(); 
+    const q = searchParams.get('q') || "";
 
     const [products, setProducts] = useState([]);
     const [seller, setSeller] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [searchTerm, setSearchTerm] = useState(q); // Iniitialize with URL param
-
-    // Use loose equality (==) to handle potential string/number mismatches from URL/Auth
+    const [searchTerm, setSearchTerm] = useState(q); 
     const isOwner = currentUser && seller && (currentUser.dbId == seller.id);
 
     // Delete Modal State
@@ -148,18 +146,16 @@ export default function StorePage() {
     // Filter States
     const [priceFilters, setPriceFilters] = useState([]);
     const [minRating, setMinRating] = useState(0);
-    const [selectedCategory, setSelectedCategory] = useState(null); // Added State
-
-    // Use loose equality (==) to handle potential string/number mismatches from URL/Auth
+    const [selectedCategory, setSelectedCategory] = useState(null); 
     const [showEditModal, setShowEditModal] = useState(false);
-    const [activeModalTab, setActiveModalTab] = useState("basic"); // basic, profile, banner
+    const [activeModalTab, setActiveModalTab] = useState("basic"); 
     const [newStoreName, setNewStoreName] = useState("");
-    const [newStoreImage, setNewStoreImage] = useState(null); // File object
-    const [newStoreBanner, setNewStoreBanner] = useState(null); // File object
-    const [newStoreBackground, setNewStoreBackground] = useState(null); // File object
+    const [newStoreImage, setNewStoreImage] = useState(null); 
+    const [newStoreBanner, setNewStoreBanner] = useState(null); 
+    const [newStoreBackground, setNewStoreBackground] = useState(null); 
     const [uploading, setUploading] = useState(false);
     const [activeTab, setActiveTab] = useState('home');
-    const [sidebarKey, setSidebarKey] = useState(0); // Key to force Sidebar re-render/reset
+    const [sidebarKey, setSidebarKey] = useState(0); 
 
     // Fetch Analytics Logic (Only if Owner)
     useEffect(() => {

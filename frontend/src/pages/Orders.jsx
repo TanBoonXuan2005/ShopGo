@@ -129,8 +129,8 @@ export default function Orders() {
     };
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [itemsToReview, setItemsToReview] = useState([]);
-    const [reviewData, setReviewData] = useState({}); // { itemId: { rating: 5, comment: "" } }
-    const [loadingReviews, setLoadingReviews] = useState({}); // { itemId: true/false }
+    const [reviewData, setReviewData] = useState({});
+    const [loadingReviews, setLoadingReviews] = useState({}); 
 
 
 
@@ -188,13 +188,7 @@ export default function Orders() {
     // --- PAYMENT LOGIC ---
     const handlePayment = (order) => {
         if (!order || !order.items) return;
-
-        // 1. Clear current cart to avoid conflict
         clearCart();
-
-        // 2. Navigate to Checkout with ID to resume order
-        // Note: We do NOT re-add items to cart. We rely on Checkout.jsx fetching
-        // the existing order details from the backend to preserve the correct Total Amount (including discounts).
         navigate(`/checkout?existing_order_id=${order.id}`);
     };
 
