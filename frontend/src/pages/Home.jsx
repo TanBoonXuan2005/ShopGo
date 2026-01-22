@@ -16,8 +16,8 @@ export default function Home() {
     const [recentProducts, setRecentProducts] = useState([]);
 
     // Filter States
-    const [priceFilters, setPriceFilters] = useState([]); 
-    const [minRating, setMinRating] = useState(0); 
+    const [priceFilters, setPriceFilters] = useState([]);
+    const [minRating, setMinRating] = useState(0);
 
     // Quick Add States
     const [showQuickAdd, setShowQuickAdd] = useState(false);
@@ -106,7 +106,9 @@ export default function Home() {
 
         // 3. Rating Filter (Min Rating)
         if (minRating > 0) {
-            if ((product.rating || 0) < minRating) return false;
+            // Backend returns 'average_rating', not 'rating'
+            const rating = Number(product.average_rating) || 0;
+            if (rating < minRating) return false;
         }
 
         return true;
