@@ -1,0 +1,9 @@
+node_modules
+.env
+# Debug and Utility Scripts
+debug_*.js
+check_*.js
+test_*.js
+dump_schema.js
+inspect_data.js
+*.temp
